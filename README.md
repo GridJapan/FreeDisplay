@@ -1,8 +1,19 @@
-> **GridJapan fork.** This fork exists to fix one deterministic crash in the DDC brightness path.
-> Everything below the horizontal rule is the upstream README, unchanged.
+> **GridJapan fork.** Fixes four upstream bugs, all still present in `huberdf/FreeDisplay` as of
+> `07ba072`. Everything below the horizontal rule is the upstream README, unchanged.
 > Upstream: [huberdf/FreeDisplay](https://github.com/huberdf/FreeDisplay).
 
-# The crash this fork fixes
+# Bugs this fork fixes
+
+| # | Symptom | Cause in one line |
+|---|---------|-------------------|
+| 1 | **The app dies** the first time it changes an external display's brightness over DDC | A `@MainActor` closure runs on the DDC queue and Swift's isolation check traps |
+| 2 | **The menu shows only its Quit button** — no displays, no tools, nothing | A `ScrollView` has no ideal height, and a `.window` MenuBarExtra sizes to the ideal |
+| 3 | **Choosing an external display as your main one reverts** half a second later | Auto-arrange fires on that very change and drags the display off the origin |
+| 4 | **A third virtual display is never created** if two already share its resolution | The duplicate guard matches on width and height instead of identity |
+
+Details below, in that order.
+
+# 1. The crash
 
 FreeDisplay dies with `EXC_BREAKPOINT (SIGTRAP)` the first time it successfully writes brightness
 over DDC to an external display. Not a race — if you reach the path, you crash.
@@ -87,6 +98,68 @@ window put the cursor on the external monitor — which is precisely the conditi
 `BrightnessKeyService` requires before it does anything at all.
 
 Reported on macOS 26.5.2 (25F84), Apple silicon, against upstream `07ba072`.
+
+# 2. The menu shows only its Quit button
+
+Open the menu bar icon and you get a 53pt strip: the version line, a ✕, and nothing else. No
+display rows, no tools, no settings. Not conditionally hidden — the section headings render
+unconditionally and were missing too. Every feature in the app was unreachable, which is easy to
+mistake for the app simply not having any.
+
+**Cause.** `MenuBarView` puts its content in a `ScrollView`. A scroll view has no ideal height of
+its own — it takes whatever height it is offered — and a `.window` MenuBarExtra sizes its popover
+to the content's *ideal* size. The scroll view asked for nothing and got it. The existing
+`.frame(maxHeight: 700)` cannot help: it caps a height that was never requested.
+
+**Fix.** Give the stack a minimum height, so there is an ideal size to open at.
+
+```diff
+-        .frame(maxHeight: 700)
++        .frame(minHeight: 480, maxHeight: 700)
+```
+
+The popover now opens at 496pt with its contents. Anything taller than 700pt scrolls, as intended.
+
+# 3. Making an external display the main one reverts
+
+Pick an external display as your main display and it reverts to the built-in about half a second
+later — long enough to see it work before it undoes itself.
+
+**Cause.** macOS makes whichever display holds origin (0, 0) the main one, so choosing an external
+display moves it to the origin. That raises `.setMainFlag`, which `displayReconfigCallback`
+forwards to `scheduleAutoArrange`. 500ms later `arrangeExternalAboveBuiltin` repositions every
+external display relative to the built-in, dragging the just-chosen display off the origin and
+handing main back. The feature is on by default (`fd.arrangement.externalAbove`) and has no UI to
+turn off, so the revert is both unavoidable and unexplainable from the app's own surface.
+
+**Fix.** Skip the rearrange while an external display is main. An explicit choice outranks a saved
+layout preference, and "externals above the built-in" only describes a setup where the built-in is
+main anyway.
+
+# 4. Same-sized virtual displays are silently skipped
+
+Configure three virtual displays at the same resolution and you get two — unpredictably, since
+whether the previous one finished registering decides the outcome.
+
+**Cause.** The autoCreate loop guards against duplicating a display left over from a crash by
+asking whether one with matching **width and height** is already online. A second config of the
+same size looks exactly like the first.
+
+**Fix.** Match on the panel's name, which this fork makes unique per ordinal
+(`FreeDisplay GridJapan`, `… 2`, `… 3`). The crash-recovery intent survives; same-sized configs
+stop colliding.
+
+## Also worth knowing
+
+Not bugs, but two things that cost real time to learn:
+
+- **Two declared display modes close in pixel count cannot coexist.** The window server keeps one
+  and drops the other, `apply()` still reports success, and the loser simply never appears in
+  `CGDisplayCopyAllDisplayModes`. Measured: 2.4% apart loses, 4.6% and 10% survive. Deterministic.
+  See the comment on `standardModes` for the measurements.
+- **`INFOPLIST_KEY_NSScreenCaptureUsageDescription` does nothing.** Xcode does not recognise that
+  key, so it never reaches the built `Info.plist`. The usage string in `project.yml` has never been
+  shown to anyone.
 
 ---
 
