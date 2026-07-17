@@ -5,7 +5,7 @@
 ## CoreGraphics / Displays
 
 - In a Swift 6 class init, if any `@Published` property is not yet initialized, you cannot use `self.anyProperty` before initialization completes (even if that property has already been assigned) → fix: hold the value in a local variable and reference that
-- `CGDisplayRegisterReconfigurationCallback` requires the callback to be a C function pointer (a global func), not a closure → pass `Unmanaged.passUnretained(self).toOpaque()` via `userInfo`
+- `CGDisplayRegisterReconfigurationCallback` requires the callback to be a C function pointer (a global func), not a closure → pass `Unmanaged.passRetained(self).toOpaque()` via `userInfo` (`passUnretained` leaves a dangling pointer once the owner is released); balance the retain in `deinit` — call `CGDisplayRemoveReconfigurationCallback` first, then `Unmanaged<T>.fromOpaque(ctx).release()`
 - `deinit` is nonisolated under Swift 6 and cannot access `@MainActor`-isolated properties → fix: mark the properties that need to be accessed in deinit as `nonisolated(unsafe)`
 - If compilation reports "symbol not found" after adding a Swift source file, rerun `xcodegen generate` to regenerate the xcodeproj (even if project.yml uses a glob, the old xcodeproj may not include the new file)
 - The macOS 26.2 SDK replaces the C functions `CGDisplayModeGetWidth/Height/PixelWidth/PixelHeight/RefreshRate/IODisplayModeID` and others entirely with Swift properties (`mode.width`, `mode.pixelWidth`, `mode.ioDisplayModeID`, etc.) and methods (`mode.isUsableForDesktopGUI()`) → with the new SDK, use property syntax directly and avoid the deprecated functions
@@ -77,7 +77,7 @@
 - **Date**: 2026-03-04
 
 ### L-025: choosing a HiDPI approach — mirroring is a dead end, plist override is the right way
-- **Symptom**: using CGConfigureDisplayMirrorOfDisplay to create a virtual display → mirror it to the external display in order to get HiDPI modes triggers the system "Screen Mirroring" UI + mouse stutter across screens + pure mirror mode
+- **Symptom**: creating a virtual display → using CGConfigureDisplayMirrorOfDisplay to mirror it to the external display in order to get HiDPI modes triggers the system "Screen Mirroring" UI + mouse stutter across screens + pure mirror mode
 - **Cause**: the WindowServer on Apple Silicon manages hardware mirroring strictly, and CGConfigureDisplayMirrorOfDisplay triggers a full mirror reconfiguration flow
 - **Fix**: switch to a plist override (write to /Library/Displays/Contents/Resources/Overrides/), which is BetterDisplay's approach. Requires administrator privileges (NSAppleScript "with administrator privileges"); takes effect after reconnecting the display once enabled
 - **Lesson**: do not use CGConfigureDisplayMirrorOfDisplay for HiDPI; on Apple Silicon it is a dead end

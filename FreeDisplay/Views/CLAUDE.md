@@ -1,6 +1,6 @@
 # Views — SwiftUI View Layer
 
-> Presentation and interaction only. ❌ Do not write business logic in a View, and do not call a Service directly.
+> Presentation and interaction only. A View reads and drives Services directly (see Key Patterns) — that is the convention here. ❌ Do not write business logic in a View, and do not touch CoreGraphics / IOKit / the CGSet* family directly: every system-level read and write goes through a Service.
 
 ## Structure
 
@@ -25,6 +25,9 @@
 | NotchView.swift | Notch mask |
 | MainDisplayView.swift | Main display settings |
 | AutoBrightnessView.swift | Ambient light auto-brightness |
+| HiDPIView.swift | HiDPI override toggle (requires administrator authorisation) |
+| PresetListView.swift | Preset list and switching |
+| SavePresetView.swift | Save the current configuration as a preset |
 
 ## Key Patterns
 

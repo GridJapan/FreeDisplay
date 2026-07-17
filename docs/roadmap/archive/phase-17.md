@@ -15,6 +15,8 @@ This phase involves a private API bridging header and rewrites of two low-level 
   - Implementation notes:
     1. Create `FreeDisplay/FreeDisplay-Bridging-Header.h` in the project root, declaring the following:
 
+       > **Correction (historical record — does not match the shipped code)**: the shipped bridging header declares `sizeInMillimeters` as `CGSize` (width, height), not `uint32_t`, and that is what works — so the scalar assignment in Task 3 below (`= 527`) is also wrong; `VirtualDisplayService` assigns a `CGSize`.
+
        ```objc
        // ── CGVirtualDisplay private classes (macOS 14+ virtual displays) ────────
        #import <Foundation/Foundation.h>

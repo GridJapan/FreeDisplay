@@ -35,7 +35,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.notificationCenter.removeObserver(obs)
         }
         BrightnessKeyService.shared.stop()
-        // GammaService already handles CGDisplayRestoreColorSyncSettings via willTerminateNotification observer.
+        // Gamma is already restored: GammaService observes willTerminateNotification and writes
+        // an identity ramp to every online display. It does not call the global
+        // CGDisplayRestoreColorSyncSettings, and nothing here should either.
         VirtualDisplayService.shared.destroyAll()
     }
 }

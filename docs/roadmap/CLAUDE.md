@@ -13,7 +13,7 @@ BetterDisplay is the most full-featured display management tool on macOS, but it
 - Brightness slider control (DDC protocol for external, system API for built-in)
 - Resolution switching (including the HiDPI mode list, native + scaled modes)
 - Set as main display
-- Screen rotation (90°/180°/270°)
+- ~~Screen rotation (90°/180°/270°)~~ — removed in [phase-21](phase-21.md)
 - Arrange displays (visual drag and drop)
 
 ### Feature domain 2: Full DDC/CI control
@@ -29,8 +29,8 @@ BetterDisplay is the most full-featured display management tool on macOS, but it
 
 ### Feature domain 4: Screen mirroring and streaming
 - Screen mirroring (select source → target)
-- Screen streaming (with flip/rotate/scale/underscan/opacity/crop/video filters)
-- Picture-in-picture (floating window, with options for level, lock, click-through, shadow, etc.)
+- ~~Screen streaming (with flip/rotate/scale/underscan/opacity/crop/video filters)~~ — removed in [phase-21](phase-21.md)
+- ~~Picture-in-picture (floating window, with options for level, lock, click-through, shadow, etc.)~~ — removed in [phase-21](phase-21.md)
 
 ### Feature domain 5: Advanced features
 - Virtual display/dummy display creation and management
@@ -41,10 +41,10 @@ BetterDisplay is the most full-featured display management tool on macOS, but it
 
 ## Technical approach overview
 
-- **Stack**: Swift 6.2 + SwiftUI (MenuBarExtra) + IOKit + CoreGraphics + ScreenCaptureKit + ColorSync
+- **Stack**: Swift 6.2 + SwiftUI (MenuBarExtra) + IOKit + CoreGraphics + ColorSync
 - **Architecture**: macOS menu bar app (MenuBarExtra), MVVM architecture, project managed by xcodegen
 - **Minimum OS**: macOS 14.0 (CGVirtualDisplay requires macOS 14+)
-- **Key constraints**: requires Accessibility permission (DDC) and Screen Recording permission (streaming), App Sandbox disabled
+- **Key constraints**: requires Accessibility permission (the brightness-key event tap), App Sandbox disabled
 
 ### Core design decisions
 
@@ -53,7 +53,6 @@ BetterDisplay is the most full-featured display management tool on macOS, but it
 | UI framework | SwiftUI MenuBarExtra | Natively supported on macOS 13+, lightweight, no Dock icon |
 | Project management | xcodegen + project.yml | CLI-friendly, avoids managing .xcodeproj by hand |
 | DDC communication | IOKit I2C direct communication | No third-party dependency; references the MonitorControl open source implementation |
-| Screen capture | ScreenCaptureKit | Official Apple API, macOS 12.3+, replaces the deprecated CGDisplayStream |
 | Virtual display | CGVirtualDisplay | Official API on macOS 14+, more stable than the older IOKit approach |
 | Color management | ColorSync + CoreGraphics | Native system ICC management |
 | Architecture | MVVM | SwiftUI best practice, View-ViewModel-Service layering |

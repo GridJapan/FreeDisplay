@@ -4,7 +4,7 @@
 
 ## IOKit / DDC
 
-- In the CF dictionary returned by `IODisplayCreateInfoDictionary`, `DisplayVendorID` and `DisplayProductID` have type `Int` (not `UInt32`) → try casting to UInt32 first, then to Int
+- In the CF dictionary returned by `IODisplayCreateInfoDictionary`, `DisplayVendorID` and `DisplayProductID` may bridge as either `UInt32` or `Int` → cast `as? UInt32` first and fall back to `as? Int`, converting the Int case with `UInt32(bitPattern: Int32(truncatingIfNeeded: v))`
 - `IODisplayCreateInfoDictionary` returns `Unmanaged<CFDictionary>?`; use `.takeRetainedValue()` to get the value (ARC-managed)
 - The matching parameter of `IOServiceGetMatchingServices` consumes the CFDictionary reference; no manual release is needed
 - IOKit's I2C submodule is an `explicit module` and is not covered by `import IOKit` → you need `import IOKit.i2c` (I2C functions) and `import IOKit.graphics` (IODisplay*FloatParameter functions)

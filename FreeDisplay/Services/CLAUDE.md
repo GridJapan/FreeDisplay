@@ -4,7 +4,7 @@
 
 ## Responsibilities
 
-Interacts directly with the macOS system frameworks (IOKit, CoreGraphics, ScreenCaptureKit, ColorSync),
+Interacts directly with the macOS system frameworks (IOKit, CoreGraphics, ColorSync),
 providing high-level APIs to Views/ViewModels.
 
 ## Key Patterns
