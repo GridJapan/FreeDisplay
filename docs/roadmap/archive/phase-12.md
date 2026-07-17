@@ -1,89 +1,89 @@
-# Phase 12: 收尾与发布 ✅
+# Phase 12: Wrap-up and Release ✅
 
-> 核心价值：设置持久化、UI 打磨、性能优化、可分发的 .app
+> Core value: settings persistence, UI polish, performance optimization, a distributable .app
 
-## 任务列表
+## Task List
 
-- [x] 实现全局设置持久化 (`FreeDisplay/Services/SettingsService.swift`)
-  - 实现提示：
-    使用 `UserDefaults.standard` + `@AppStorage` 持久化所有设置：
-    - 各显示器的亮度/对比度/伽马偏好
-    - 分辨率选择偏好
-    - 配置保护选项
-    - 虚拟显示器配置
-    - 自动亮度设置
-    - 串流/PiP 窗口位置和大小
-    - 收藏的分辨率模式
-    复杂配置（虚拟显示器、快照）存储到
-    `~/Library/Application Support/FreeDisplay/` 的 JSON 文件。
-  - 验证：修改设置 → 退出 → 重启 → 设置恢复
+- [x] Implement global settings persistence (`FreeDisplay/Services/SettingsService.swift`)
+  - Implementation notes:
+    Use `UserDefaults.standard` + `@AppStorage` to persist all settings:
+    - Per-display brightness/contrast/gamma preferences
+    - Resolution selection preferences
+    - Configuration protection options
+    - Virtual display configuration
+    - Auto brightness settings
+    - Streaming/PiP window position and size
+    - Favorited resolution modes
+    Complex configurations (virtual displays, snapshots) are stored as JSON files under
+    `~/Library/Application Support/FreeDisplay/`.
+  - Verification: change settings → quit → relaunch → settings restored
 
-- [x] 实现开机自启动 (`FreeDisplay/Services/LaunchService.swift`)
-  - 实现提示：
-    使用 `SMAppService.mainApp.register()` (macOS 13+) 注册登录项。
-    或使用 `LaunchAtLogin` 库。
-    在设置中添加"开机启动"Toggle。
-  - 验证：重启 Mac 后 FreeDisplay 自动启动
+- [x] Implement launch at login (`FreeDisplay/Services/LaunchService.swift`)
+  - Implementation notes:
+    Use `SMAppService.mainApp.register()` (macOS 13+) to register the login item.
+    Or use the `LaunchAtLogin` library.
+    Add a "Launch at login" Toggle in settings.
+  - Verification: FreeDisplay starts automatically after restarting the Mac
 
-- [x] 实现"视频滤镜窗口"工具 (`FreeDisplay/Views/VideoFilterWindow.swift`)
-  - 实现提示：
-    在"工具"区域添加入口（仿截图"视频滤镜窗口"）。
-    创建独立窗口，实时预览 CIFilter 效果。
-    可用滤镜：灰度、反色、模糊、锐化、色调旋转、伽马调整。
-    选择滤镜后应用到串流/PiP 画面。
-  - 验证：滤镜窗口正常显示，选择滤镜后串流画面变化
+- [x] Implement the "Video Filter Window" tool (`FreeDisplay/Views/VideoFilterWindow.swift`)
+  - Implementation notes:
+    Add an entry in the "Tools" area (following the "Video Filter Window" screenshot).
+    Create a standalone window with a live preview of CIFilter effects.
+    Available filters: grayscale, invert, blur, sharpen, hue rotation, gamma adjustment.
+    Selecting a filter applies it to the streaming/PiP image.
+  - Verification: the filter window displays correctly, and the streamed image changes when a filter is selected
 
-- [x] 实现"系统颜色"工具 (`FreeDisplay/Views/SystemColorView.swift`)
-  - 实现提示：
-    在"工具"区域添加入口（仿截图"系统颜色"）。
-    弹出取色器窗口：
-    - 使用 `NSColorSampler` (macOS 10.15+) 实现屏幕取色
-    - 显示鼠标所在位置的颜色值（HEX、RGB、HSB）
-    - 颜色历史记录
-  - 验证：点击后可从屏幕任意位置取色
+- [x] Implement the "System Colors" tool (`FreeDisplay/Views/SystemColorView.swift`)
+  - Implementation notes:
+    Add an entry in the "Tools" area (following the "System Colors" screenshot).
+    Opens a color picker window:
+    - Use `NSColorSampler` (macOS 10.15+) for on-screen color picking
+    - Show the color value at the mouse position (HEX, RGB, HSB)
+    - Color history
+  - Verification: after clicking, colors can be picked from anywhere on screen
 
-- [x] 实现"检查更新"功能 (`FreeDisplay/Services/UpdateService.swift`)
-  - 实现提示：
-    如果开源发布到 GitHub，使用 GitHub Releases API 检查新版本：
+- [x] Implement the "Check for Updates" feature (`FreeDisplay/Services/UpdateService.swift`)
+  - Implementation notes:
+    If open-sourced and released on GitHub, use the GitHub Releases API to check for new versions:
     `GET https://api.github.com/repos/{owner}/{repo}/releases/latest`
-    比较 `tag_name` 与当前版本号。
-    有新版本时在菜单底部显示"有可用更新"提示。
-    暂时可以只放 UI 占位，实际检查功能等发布到 GitHub 后实现。
-  - 验证：菜单底部显示版本号
+    Compare `tag_name` against the current version number.
+    When a new version is available, show an "Update available" notice at the bottom of the menu.
+    For now a UI placeholder is acceptable; implement the actual check after release on GitHub.
+  - Verification: the version number is shown at the bottom of the menu
 
-- [x] UI 打磨与一致性 (`全局`)
-  - 实现提示：
-    对照 BetterDisplay 截图逐一检查：
-    1. 所有 section 的图标颜色统一（蓝色圆形图标）
-    2. 展开/折叠动画流畅
-    3. 滑块拖动响应灵敏
-    4. 深色/浅色模式适配（`@Environment(\.colorScheme)`）
-    5. 菜单宽度与 BetterDisplay 一致（约 320pt）
-    6. 字体大小和间距匹配
-    7. 快捷键支持：⌥+点击菜单栏图标快速识别显示器
-  - 完成：新增 `MenuItemIcon` 彩色圆角方块图标助手；所有 section 均使用统一图标风格（颜色语义化：红=串流/PiP，紫=颜色管理，绿=锁/保护，橙=自动亮度等）；所有展开/折叠均添加 `withAnimation(.easeInOut(duration: 0.2))` + `.transition(.opacity.combined(with: .move(edge: .top)))`。
+- [x] UI polish and consistency (`global`)
+  - Implementation notes:
+    Check each item against the BetterDisplay screenshots:
+    1. Icon colors are consistent across all sections (blue circular icons)
+    2. Expand/collapse animations are smooth
+    3. Slider dragging is responsive
+    4. Dark/light mode support (`@Environment(\.colorScheme)`)
+    5. Menu width matches BetterDisplay (about 320pt)
+    6. Font sizes and spacing match
+    7. Shortcut support: ⌥+click the menu bar icon to quickly identify displays
+  - Done: added the `MenuItemIcon` colored rounded-square icon helper; all sections use a consistent icon style (semantic colors: red = streaming/PiP, purple = color management, green = lock/protection, orange = auto brightness, etc.); all expand/collapse transitions add `withAnimation(.easeInOut(duration: 0.2))` + `.transition(.opacity.combined(with: .move(edge: .top)))`.
 
-- [x] 性能优化 (`全局`)
-  - 实现提示：
-    1. DDC 通信：后台线程 + 结果缓存（5 秒 TTL）
-    2. 串流渲染：Metal 而非 CoreImage（如果 Phase 9 用了 CIImage）
-    3. 菜单弹出速度：延迟加载非可见区域
-    4. 内存：串流 buffer 池复用，避免频繁分配
-    5. 电量：串流/PiP 未激活时停止捕获
-  - 完成：DDCService 新增 `VCPCacheEntry`（5 秒 TTL）+ `vcpCache` 字典 + `cacheLock` NSLock；`readAsync` 优先返回缓存命中，`writeAsync` 写成功后失效对应缓存；`readBatchVCPCodes` 批量读取同时填充缓存。
+- [x] Performance optimization (`global`)
+  - Implementation notes:
+    1. DDC communication: background thread + result caching (5 second TTL)
+    2. Stream rendering: Metal instead of CoreImage (if Phase 9 used CIImage)
+    3. Menu popup speed: lazy-load non-visible areas
+    4. Memory: reuse a stream buffer pool to avoid frequent allocation
+    5. Power: stop capture when streaming/PiP is inactive
+  - Done: DDCService gained `VCPCacheEntry` (5 second TTL) + a `vcpCache` dictionary + a `cacheLock` NSLock; `readAsync` returns cache hits first, `writeAsync` invalidates the corresponding cache entry after a successful write; `readBatchVCPCodes` populates the cache while reading in bulk.
 
-- [x] 构建可分发 .app (`构建脚本`)
-  - 完成：创建 `ExportOptions.plist`（无签名分发配置）和 `build.sh`（一键 archive → export → DMG 打包）。
+- [x] Build a distributable .app (`build script`)
+  - Done: created `ExportOptions.plist` (unsigned distribution config) and `build.sh` (one-click archive → export → DMG packaging).
 
-- [x] 触发 refactor-context 搭建上下文脚手架
-  - 完成：所有 Phase 已完成，CODEMAP 和文档已为最新状态。
+- [x] Trigger refactor-context to set up the context scaffolding
+  - Done: all phases are complete; CODEMAP and the docs are up to date.
 
-## Phase 验收
+## Phase Acceptance
 
-- 所有功能正常工作
-- 设置持久化（重启恢复）
-- UI 与 BetterDisplay 截图高度一致
-- 可构建可分发的 .app / .dmg
-- 全部测试通过 + 文档齐全
+- All features work correctly
+- Settings persist (restored on restart)
+- The UI closely matches the BetterDisplay screenshots
+- A distributable .app / .dmg can be built
+- All tests pass + documentation is complete
 
-**完成后**: 项目完成，建议运行 project-optimize 做最终反思
+**After completion**: the project is done; recommend running project-optimize for a final reflection

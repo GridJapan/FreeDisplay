@@ -441,7 +441,7 @@ struct DisplayRowView: View {
                 Label("Copy Display Name", systemImage: "doc.on.doc")
             }
         }
-        .accessibilityLabel("Display: \(display.name)\(display.isMain ? "，MainDisplay" : "")\(isExpanded ? ", expanded" : ", collapsed")")
+        .accessibilityLabel("Display: \(display.name)\(display.isMain ? ", main display" : "")\(isExpanded ? ", expanded" : ", collapsed")")
         .accessibilityHint("Click to expand the controls")
         .accessibilityAddTraits(.isButton)
     }

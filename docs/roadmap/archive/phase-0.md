@@ -1,74 +1,74 @@
-# Phase 0: 项目初始化 ⏳
+# Phase 0: Project Initialization ⏳
 
-> 由 project-planner 自动执行
+> Executed automatically by project-planner
 
-## 任务列表
+## Task List
 
-- [ ] 创建项目目录结构
+- [ ] Create the project directory structure
   ```
   FreeDisplay/
-  ├── project.yml                    # xcodegen 项目配置
+  ├── project.yml                    # xcodegen project configuration
   ├── FreeDisplay/
   │   ├── App/
-  │   │   ├── FreeDisplayApp.swift   # @main 入口，MenuBarExtra
-  │   │   └── AppDelegate.swift      # NSApplicationDelegate，权限请求
-  │   ├── Views/                     # SwiftUI 视图层
-  │   ├── ViewModels/                # ViewModel 层
-  │   ├── Models/                    # 数据模型
-  │   ├── Services/                  # 底层服务（DDC、显示管理等）
-  │   ├── Utilities/                 # 工具函数
+  │   │   ├── FreeDisplayApp.swift   # @main entry point, MenuBarExtra
+  │   │   └── AppDelegate.swift      # NSApplicationDelegate, permission requests
+  │   ├── Views/                     # SwiftUI view layer
+  │   ├── ViewModels/                # ViewModel layer
+  │   ├── Models/                    # Data models
+  │   ├── Services/                  # Low-level services (DDC, display management, etc.)
+  │   ├── Utilities/                 # Utility functions
   │   ├── Resources/
-  │   │   └── Assets.xcassets/       # 图标资源
-  │   └── FreeDisplay.entitlements   # 权限声明
+  │   │   └── Assets.xcassets/       # Icon resources
+  │   └── FreeDisplay.entitlements   # Entitlement declarations
   └── docs/
-      └── roadmap/                   # 本文件所在
+      └── roadmap/                   # Where this file lives
   ```
-  - 实现提示：`mkdir -p` 创建所有目录
+  - Implementation hint: use `mkdir -p` to create all directories
 
-- [ ] 创建 `project.yml`（xcodegen 配置）
-  - 实现提示：配置 macOS app target，最低部署 macOS 14.0，关闭 App Sandbox，
-    配置 Hardened Runtime，链接 IOKit.framework、CoreGraphics.framework、
-    ScreenCaptureKit.framework、ColorSync.framework。
-    entitlements 文件指向 FreeDisplay/FreeDisplay.entitlements
-  - 验证：`xcodegen generate` 成功生成 FreeDisplay.xcodeproj
+- [ ] Create `project.yml` (xcodegen configuration)
+  - Implementation hint: configure a macOS app target, minimum deployment macOS 14.0, App Sandbox off,
+    Hardened Runtime configured, linking IOKit.framework, CoreGraphics.framework,
+    ScreenCaptureKit.framework, ColorSync.framework.
+    The entitlements file points at FreeDisplay/FreeDisplay.entitlements
+  - Verification: `xcodegen generate` successfully generates FreeDisplay.xcodeproj
 
-- [ ] 创建 `FreeDisplay/FreeDisplay.entitlements`
-  - 实现提示：关闭 App Sandbox (`com.apple.security.app-sandbox` = false)，
-    开启 Hardened Runtime 相关权限
-  - 验证：文件存在且 XML 格式合法
+- [ ] Create `FreeDisplay/FreeDisplay.entitlements`
+  - Implementation hint: turn off App Sandbox (`com.apple.security.app-sandbox` = false),
+    enable the Hardened Runtime related entitlements
+  - Verification: the file exists and is valid XML
 
-- [ ] 创建 `FreeDisplay/App/FreeDisplayApp.swift`
-  - 实现提示：使用 `@main` + SwiftUI `App` 协议，
-    `MenuBarExtra("FreeDisplay", systemImage: "display")` 创建菜单栏图标，
-    菜单内先放一个 "FreeDisplay v0.1" 文本 + "Quit" 按钮。
-    设置 `.menuBarExtraStyle(.window)` 以支持自定义视图。
-  - 验证：编译运行后菜单栏出现显示器图标，点击弹出面板
+- [ ] Create `FreeDisplay/App/FreeDisplayApp.swift`
+  - Implementation hint: use `@main` + the SwiftUI `App` protocol,
+    `MenuBarExtra("FreeDisplay", systemImage: "display")` to create the menu bar icon,
+    with a "FreeDisplay v0.1" text item + a "Quit" button in the menu for now.
+    Set `.menuBarExtraStyle(.window)` to support custom views.
+  - Verification: after building and running, a display icon appears in the menu bar and clicking it pops up a panel
 
-- [ ] 创建 `FreeDisplay/App/AppDelegate.swift`
-  - 实现提示：`NSApplicationDelegate`，在 `applicationDidFinishLaunching` 中
-    隐藏 Dock 图标 (`NSApp.setActivationPolicy(.accessory)`)
-  - 验证：运行后 Dock 无图标，仅菜单栏可见
+- [ ] Create `FreeDisplay/App/AppDelegate.swift`
+  - Implementation hint: `NSApplicationDelegate`, hide the Dock icon in
+    `applicationDidFinishLaunching` (`NSApp.setActivationPolicy(.accessory)`)
+  - Verification: after running there is no Dock icon, only the menu bar is visible
 
-- [ ] 创建 `FreeDisplay/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json`
-  - 实现提示：使用标准 macOS app icon set 的 Contents.json 模板，暂时不放实际图标文件
-  - 验证：xcodegen 生成项目时无 asset catalog 警告
+- [ ] Create `FreeDisplay/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json`
+  - Implementation hint: use the standard macOS app icon set Contents.json template, without any actual icon files for now
+  - Verification: no asset catalog warnings when xcodegen generates the project
 
-- [ ] 创建骨架文件（带 TODO 注释）
-  - `FreeDisplay/Models/DisplayInfo.swift`：`class DisplayInfo: ObservableObject, Identifiable` 存储单个显示器信息
-  - `FreeDisplay/Services/DisplayManager.swift`：`class DisplayManager: ObservableObject` 管理所有显示器
-  - `FreeDisplay/Services/DDCService.swift`：`class DDCService` DDC/CI I2C 通信
-  - `FreeDisplay/Views/MenuBarView.swift`：主菜单视图骨架
-  - 每个文件包含 import、类声明、关键方法签名 + `// TODO: Phase N` 注释
+- [ ] Create skeleton files (with TODO comments)
+  - `FreeDisplay/Models/DisplayInfo.swift`: `class DisplayInfo: ObservableObject, Identifiable` stores information about a single display
+  - `FreeDisplay/Services/DisplayManager.swift`: `class DisplayManager: ObservableObject` manages all displays
+  - `FreeDisplay/Services/DDCService.swift`: `class DDCService` DDC/CI I2C communication
+  - `FreeDisplay/Views/MenuBarView.swift`: skeleton of the main menu view
+  - Each file contains imports, the class declaration, key method signatures + `// TODO: Phase N` comments
 
-- [ ] 用 xcodegen 生成 Xcode 项目并编译
-  - 实现提示：`cd ~/Desktop/FreeDisplay && xcodegen generate && xcodebuild -scheme FreeDisplay -configuration Debug build`
-  - 验证：`xcodebuild build` 成功，无编译错误
+- [ ] Generate the Xcode project with xcodegen and build it
+  - Implementation hint: `cd ~/Desktop/FreeDisplay && xcodegen generate && xcodebuild -scheme FreeDisplay -configuration Debug build`
+  - Verification: `xcodebuild build` succeeds with no compile errors
 
-## Phase 验收
+## Phase Acceptance
 
 ```bash
 cd ~/Desktop/FreeDisplay
-xcodegen generate   # 成功生成 .xcodeproj
-xcodebuild -scheme FreeDisplay -configuration Debug build  # 编译成功
-# 运行后：菜单栏出现显示器图标，点击弹出 "FreeDisplay v0.1" + Quit 按钮
+xcodegen generate   # successfully generates the .xcodeproj
+xcodebuild -scheme FreeDisplay -configuration Debug build  # build succeeds
+# After running: a display icon appears in the menu bar; clicking it pops up "FreeDisplay v0.1" + a Quit button
 ```

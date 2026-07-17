@@ -1,63 +1,63 @@
-# Phase 4: 屏幕旋转与显示器排列 ✅
+# Phase 4: Screen Rotation and Display Arrangement ✅
 
-> 核心价值：屏幕旋转和多显示器空间排列
+> Core value: screen rotation and spatial arrangement of multiple displays
 
-## 任务列表
+## Task List
 
-- [x] 实现屏幕旋转 (`FreeDisplay/Services/RotationService.swift`)
-  - 实现提示：
-    使用 `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin` 配合旋转。
-    macOS 的旋转通过 IOKit 设置：
+- [x] Implement screen rotation (`FreeDisplay/Services/RotationService.swift`)
+  - Implementation hint:
+    Use `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin` together with rotation.
+    macOS rotation is set through IOKit:
     ```swift
-    IOServiceRequestProbe(service, kIOFBSetTransform)  // 触发旋转
+    IOServiceRequestProbe(service, kIOFBSetTransform)  // trigger rotation
     ```
-    或使用 `CGDisplayRotation()` 获取当前旋转角度，
-    通过私有 API `CGSConfigureDisplayMode` 设置旋转。
-    备选方案：使用 `displayplacer` CLI 工具的思路，通过 IOKit 直接操作。
-    支持的角度：0°、90°、180°、270°。
-  - 验证：选择 90° 旋转后显示器画面实际旋转
+    Or use `CGDisplayRotation()` to get the current rotation angle,
+    and set rotation via the private API `CGSConfigureDisplayMode`.
+    Alternative: follow the approach of the `displayplacer` CLI tool, operating IOKit directly.
+    Supported angles: 0°, 90°, 180°, 270°.
+  - Verification: after selecting 90° rotation the display's image actually rotates
 
-- [x] 实现屏幕旋转 UI (`FreeDisplay/Views/RotationView.swift`)
-  - 实现提示：
-    可展开的"屏幕旋转"section。
-    四个选项：90°/180°/270° 旋转屏幕 + 关闭旋转。
-    每个选项一行，左侧旋转方向箭头图标（↻/↓/←），右侧文字。
-    当前旋转状态高亮。
-    仿照 BetterDisplay 截图的屏幕旋转区域布局。
-  - 验证：UI 显示四个旋转选项，点击后实际旋转
+- [x] Implement the screen rotation UI (`FreeDisplay/Views/RotationView.swift`)
+  - Implementation hint:
+    An expandable "Screen rotation" section.
+    Four options: rotate the screen 90°/180°/270° + turn rotation off.
+    One row per option, with a rotation direction arrow icon on the left (↻/↓/←) and text on the right.
+    The current rotation state is highlighted.
+    Follow the layout of the screen rotation area in the BetterDisplay screenshot.
+  - Verification: the UI shows four rotation options, and clicking one actually rotates the display
 
-- [x] 实现显示器排列 (`FreeDisplay/Services/ArrangementService.swift`)
-  - 实现提示：
-    使用 `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin(config, displayID, x, y)`
-    → `CGCompleteDisplayConfiguration` 设置显示器在虚拟桌面中的位置。
-    获取当前位置：`CGDisplayBounds(displayID)` 返回的 origin。
-    多个显示器的坐标系：主显示器左上角为 (0,0)，其他显示器相对偏移。
-  - 验证：代码调整显示器位置后，系统偏好设置中排列确实变化
+- [x] Implement display arrangement (`FreeDisplay/Services/ArrangementService.swift`)
+  - Implementation hint:
+    Use `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin(config, displayID, x, y)`
+    → `CGCompleteDisplayConfiguration` to set a display's position in the virtual desktop.
+    Get the current position: the origin returned by `CGDisplayBounds(displayID)`.
+    Coordinate system for multiple displays: the main display's top-left corner is (0,0), other displays are offset relative to it.
+  - Verification: after the code adjusts a display's position, the arrangement in System Settings does change
 
-- [x] 实现排列显示器 UI (`FreeDisplay/Views/ArrangementView.swift`)
-  - 实现提示：
-    可展开的"排列显示器"section。
-    内容是一个网格视图，仿照 BetterDisplay 截图：
-    灰色背景上显示显示器缩略图（蓝色矩形 + 名称），可拖拽。
-    使用 SwiftUI 的 `.gesture(DragGesture())` 实现拖拽。
-    显示器矩形的大小按实际分辨率等比缩放。
-    拖拽结束后调用 ArrangementService 更新位置。
-    网格背景用浅灰色方格表示虚拟桌面范围。
-  - 验证：显示器排列视图与 BetterDisplay 截图布局一致，拖拽后位置更新
+- [x] Implement the display arrangement UI (`FreeDisplay/Views/ArrangementView.swift`)
+  - Implementation hint:
+    An expandable "Arrange displays" section.
+    The content is a grid view following the BetterDisplay screenshot:
+    display thumbnails (blue rectangle + name) on a gray background, draggable.
+    Implement dragging with SwiftUI's `.gesture(DragGesture())`.
+    The size of each display rectangle is scaled proportionally to its actual resolution.
+    Call ArrangementService to update the position when the drag ends.
+    The grid background uses light gray squares to represent the extent of the virtual desktop.
+  - Verification: the display arrangement view layout matches the BetterDisplay screenshot, and positions update after dragging
 
-- [x] 设为主显示屏功能 (`FreeDisplay/Services/DisplayManager.swift` 扩展)
-  - 实现提示：
-    在 DisplayManager 中添加 `func setAsMainDisplay(_ displayID: CGDirectDisplayID)`。
-    使用 `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin(config, displayID, 0, 0)`
-    将目标显示器移到原点位置（macOS 中主显示器 = 坐标原点的显示器）。
-    其他显示器的坐标相应调整。
-  - 验证：设为主显示器后，Dock 和菜单栏移到目标显示器
+- [x] Set as main display feature (`FreeDisplay/Services/DisplayManager.swift` extension)
+  - Implementation hint:
+    Add `func setAsMainDisplay(_ displayID: CGDirectDisplayID)` to DisplayManager.
+    Use `CGBeginDisplayConfiguration` → `CGConfigureDisplayOrigin(config, displayID, 0, 0)`
+    to move the target display to the origin (in macOS the main display = the display at the coordinate origin).
+    The coordinates of the other displays are adjusted accordingly.
+  - Verification: after setting a display as the main display, the Dock and menu bar move to the target display
 
-## Phase 验收
+## Phase Acceptance
 
-- 屏幕旋转四个方向都工作正常
-- 显示器排列可视化拖拽正常
-- 设为主显示屏功能正常
-- UI 布局与 BetterDisplay 截图一致
+- All four screen rotation directions work correctly
+- Visual drag-and-drop display arrangement works correctly
+- The set as main display feature works correctly
+- The UI layout matches the BetterDisplay screenshot
 
-**完成后**: 建议运行 project-optimize 反思
+**After completion**: consider running project-optimize for a retrospective

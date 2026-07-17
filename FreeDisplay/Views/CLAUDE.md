@@ -1,41 +1,41 @@
-# Views — SwiftUI 视图层
+# Views — SwiftUI View Layer
 
-> 纯展示和交互，❌ 不在 View 里写业务逻辑，不直接调 Service。
+> Presentation and interaction only. ❌ Do not write business logic in a View, and do not call a Service directly.
 
-## 结构
+## Structure
 
-- **MenuBarView.swift** — 菜单栏主视图，所有功能的入口容器
-- **DisplayDetailView.swift** — 每显示器展开面板，可折叠 Section 的容器
-- 每个 Section 对应一个独立 View 文件（BrightnessSliderView、ColorProfileView 等）
+- **MenuBarView.swift** — the main menu bar view; the entry container for every feature
+- **DisplayDetailView.swift** — the per-display expanded panel; the container for collapsible Sections
+- Each Section corresponds to its own View file (BrightnessSliderView, ColorProfileView, etc.)
 
-## 文件清单
+## File List
 
-| 文件 | 用途 |
+| File | Purpose |
 |------|------|
-| MenuBarView.swift | 菜单栏主视图 + 所有 Section 入口 |
-| DisplayDetailView.swift | 显示器展开面板（12 个 Section） |
-| BrightnessSliderView.swift | 亮度/对比度滑条 |
-| ResolutionSliderView.swift | 分辨率滑条 |
-| DisplayModeListView.swift | 分辨率模式列表（收藏置顶） |
-| ArrangementView.swift | 显示器排列（含内外屏缩略图区分） |
-| ColorProfileView.swift | ICC Profile 选择 |
-| SystemColorView.swift | 系统颜色配置 |
-| ImageAdjustmentView.swift | 图像调整（gamma/对比度） |
-| VirtualDisplayView.swift | HiDPI 虚拟显示器 |
-| NotchView.swift | 刘海遮罩 |
-| MainDisplayView.swift | 主显示器设置 |
-| AutoBrightnessView.swift | 环境光自动亮度 |
+| MenuBarView.swift | Main menu bar view + entry points for every Section |
+| DisplayDetailView.swift | Display expanded panel (12 Sections) |
+| BrightnessSliderView.swift | Brightness/contrast sliders |
+| ResolutionSliderView.swift | Resolution slider |
+| DisplayModeListView.swift | Resolution mode list (favorites pinned to the top) |
+| ArrangementView.swift | Display arrangement (thumbnails distinguish built-in from external screens) |
+| ColorProfileView.swift | ICC Profile selection |
+| SystemColorView.swift | System color configuration |
+| ImageAdjustmentView.swift | Image adjustment (gamma/contrast) |
+| VirtualDisplayView.swift | HiDPI virtual display |
+| NotchView.swift | Notch mask |
+| MainDisplayView.swift | Main display settings |
+| AutoBrightnessView.swift | Ambient light auto-brightness |
 
-## 关键模式
+## Key Patterns
 
-- `@EnvironmentObject var displayManager: DisplayManager` — 全局注入
-- `@ObservedObject` 用于共享单例（❌ 不要用 @StateObject 包装 .shared）
-- 需要 hover/loading 状态的行组件 → 提取为独立 `struct`（❌ 不要用 @ViewBuilder 函数）
-- 组件命名: 可复用行 `XxxRow` 或 `XxxRowView`
-- 统一 hover 效果：`.background(isHovered ? Color.primary.opacity(0.07) : .clear)`
+- `@EnvironmentObject var displayManager: DisplayManager` — injected globally
+- `@ObservedObject` is used for shared singletons (❌ do not wrap `.shared` in @StateObject)
+- Row components that need hover/loading state → extract them into a standalone `struct` (❌ do not use a @ViewBuilder function)
+- Component naming: reusable rows are `XxxRow` or `XxxRowView`
+- One uniform hover effect: `.background(isHovered ? Color.primary.opacity(0.07) : .clear)`
 
-## 改动检查
+## Change Checklist
 
-- 新增 Section → 改 DisplayDetailView.swift + 检查 MenuBarView 布局
-- 新增工具入口 → 改 MenuBarView.swift 工具区
-- 新增行组件 → 必须用独立 struct，不能是 @ViewBuilder 函数
+- Adding a Section → change DisplayDetailView.swift + check the MenuBarView layout
+- Adding a tool entry point → change the tools area of MenuBarView.swift
+- Adding a row component → it MUST be a standalone struct, it cannot be a @ViewBuilder function

@@ -1,29 +1,29 @@
-# 踩坑经验 — SwiftUI / UI
+# Pitfalls — SwiftUI / UI
 
-> 更新: 2026-03-05
+> Updated: 2026-03-05
 
 ## SwiftUI / MenuBarExtra
 
-- MenuBarExtra 需要 `.menuBarExtraStyle(.window)` 才能显示自定义 SwiftUI 视图（默认是 menu style 只支持 Button/Toggle）
-- 隐藏 Dock 图标：在 project.yml 设 `INFOPLIST_KEY_LSUIElement: true`，不需要在 AppDelegate 里手动设
+- MenuBarExtra needs `.menuBarExtraStyle(.window)` to display a custom SwiftUI view (the default menu style only supports Button/Toggle)
+- Hiding the Dock icon: set `INFOPLIST_KEY_LSUIElement: true` in project.yml; there is no need to set it manually in AppDelegate
 
-## UI 动画 / SwiftUI（Phase 12）
+## UI Animation / SwiftUI (Phase 12)
 
-- `withAnimation(.easeInOut(duration: 0.2)) { state.toggle() }` 是触发展开/折叠动画的最简单方式，不需要 `.animation(_, value:)` 作用在整个容器上
-- `.transition(.opacity.combined(with: .move(edge: .top)))` 用于展开内容的进出效果，视觉上像从按钮下方滑出
-- 共享 icon 助手 `MenuItemIcon`（定义在 MenuBarView.swift）可在同一 Module 内所有 View 直接使用，不需要额外声明
-- SwiftUI 中颜色语义化（绿色=保护/安全，红=流媒体，橙=亮度，灰=设置，紫=颜色管理）能有效传递功能语义，无需额外文字说明
+- `withAnimation(.easeInOut(duration: 0.2)) { state.toggle() }` is the simplest way to trigger an expand/collapse animation; there is no need to apply `.animation(_, value:)` to the whole container
+- `.transition(.opacity.combined(with: .move(edge: .top)))` is used for the enter/exit effect of the expanded content; visually it looks like it slides out from under the button
+- The shared icon helper `MenuItemIcon` (defined in MenuBarView.swift) can be used directly by every View in the same Module without an extra declaration
+- Semantic colors in SwiftUI (green = protection/safety, red = streaming, orange = brightness, gray = settings, purple = color management) convey feature semantics effectively, with no extra text needed
 
-## DDC 性能缓存（Phase 12）
+## DDC Performance Caching (Phase 12)
 
-- DDC I2C 读取延迟 50ms+，UI 重复触发读取会显著影响体验 → 用 `NSLock` + 字典缓存 + 5 秒 TTL 解决；写操作后立即失效对应缓存条目
-- 缓存 key 为 `[CGDirectDisplayID: [UInt8: VCPCacheEntry]]` 双层字典，可按显示器和 VCP code 精确失效
-- `NSLock.lock()` / `unlock()` 必须配对，建议用 `defer { lock.unlock() }` 但要注意提前 return 时 defer 会正确执行
+- DDC I2C reads have 50ms+ latency, and repeated reads triggered by the UI noticeably hurt the experience → solved with `NSLock` + a dictionary cache + a 5-second TTL; the corresponding cache entry is invalidated immediately after a write
+- The cache key is a two-level dictionary `[CGDirectDisplayID: [UInt8: VCPCacheEntry]]`, which allows precise invalidation per display and per VCP code
+- `NSLock.lock()` / `unlock()` must be paired; `defer { lock.unlock() }` is recommended, but note that defer executes correctly on an early return
 
-## SwiftUI 性能
+## SwiftUI Performance
 
-- `@Published` 属性变更会触发所有观察该 ObservableObject 的 View 重绘 → 拆分状态到多个小 ObservableObject 或用 `@State` 局部化
-- View `body` 中不要放同步 IOKit/CG 调用（如 `CGDisplayCopyColorSpace`）→ 用 `@State` + `onAppear`/`task {}` 异步获取
-- `isSwitching = true; syncCall(); isSwitching = false` 模式无效：SwiftUI 不会在同步代码中间渲染 → 必须用 async/await 让 SwiftUI 有机会重绘
-- `@StateObject` 包装共享单例（`XXX.shared`）是反模式：每次 View 重建都可能创建新订阅 → 共享单例用 `@ObservedObject`
-- `CGSetDisplayTransferByFormula` 设置的 gamma table 是内核级持久的，不会随 View 销毁自动恢复 → 必须在 `onDisappear` 和 app 退出时手动调 `CGDisplayRestoreColorSyncSettings()`
+- A change to an `@Published` property triggers a redraw of every View observing that ObservableObject → split the state into several small ObservableObjects, or localize it with `@State`
+- Do not put synchronous IOKit/CG calls (such as `CGDisplayCopyColorSpace`) in a View `body` → fetch asynchronously with `@State` + `onAppear`/`task {}`
+- The `isSwitching = true; syncCall(); isSwitching = false` pattern does not work: SwiftUI does not render in the middle of synchronous code → you must use async/await to give SwiftUI a chance to redraw
+- Wrapping a shared singleton (`XXX.shared`) in `@StateObject` is an anti-pattern: every View rebuild may create a new subscription → use `@ObservedObject` for shared singletons
+- The gamma table set by `CGSetDisplayTransferByFormula` persists at the kernel level and is not restored automatically when the View is destroyed → you must call `CGDisplayRestoreColorSyncSettings()` manually in `onDisappear` and on app exit

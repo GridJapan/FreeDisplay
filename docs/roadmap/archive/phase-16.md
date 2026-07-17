@@ -1,183 +1,183 @@
-# Phase 16: 全面 Bug 修复
+# Phase 16: Comprehensive Bug Fixes
 
-> 目标：修复审计发现的 37 个问题，按优先级分三批执行
+> Goal: fix the 37 issues found by the audit, executed in three batches by priority
 
-## 批次 A: P0 — 崩溃/数据丢失（5 个）
+## Batch A: P0 — Crashes / Data Loss (5 issues)
 
-- [x] A1: 修复 AutoBrightnessService 遍历 displays 竞态条件
-  - **文件**: `AutoBrightnessService.swift` applyBrightness 方法
-  - **问题**: 访问 `DisplayManagerAccessor.shared.displays` 并修改 `display.brightness` 时无同步保护，热插拔时可能崩溃
-  - **修法**: 迭代前用 `let snapshot = displays` 做数组快照，或加 `@MainActor` 确保主线程访问
-  - **验证**: 自动亮度开启状态下热插拔显示器不崩溃
+- [x] A1: Fix the race condition when AutoBrightnessService iterates displays
+  - **File**: `AutoBrightnessService.swift`, applyBrightness method
+  - **Problem**: accessing `DisplayManagerAccessor.shared.displays` and mutating `display.brightness` without synchronization; may crash on hot-plug
+  - **Fix**: take an array snapshot before iterating with `let snapshot = displays`, or add `@MainActor` to ensure main-thread access
+  - **Verification**: hot-plugging a display with auto brightness enabled does not crash
 
-- [x] A2: 修复 BrightnessService refreshBrightness 内存泄漏
-  - **文件**: `BrightnessService.swift` refreshBrightness 方法
-  - **问题**: DDCService.shared.readAsync() 的 completion handler 隐式捕获 self，display 释放后回调悬空
-  - **修法**: completion 中用 `[weak self]` 捕获，回调内 `guard let self else { return }`
-  - **验证**: 反复刷新亮度后 Instruments 无内存泄漏
+- [x] A2: Fix the memory leak in BrightnessService refreshBrightness
+  - **File**: `BrightnessService.swift`, refreshBrightness method
+  - **Problem**: DDCService.shared.readAsync()'s completion handler implicitly captures self; the callback dangles after the display is released
+  - **Fix**: capture with `[weak self]` in the completion and `guard let self else { return }` inside the callback
+  - **Verification**: no memory leak in Instruments after refreshing brightness repeatedly
 
-- [x] A3: 修复 BrightnessSliderView onChange 边界条件
-  - **文件**: `BrightnessSliderView.swift` onChange(of: display.brightness)
-  - **问题**: `abs(newValue - localBrightness) > 1` 用 `>` 导致恰好 1% 变化时不同步
-  - **修法**: 改为 `abs(newValue - localBrightness) >= 1`
-  - **验证**: 外部修改亮度 1% → UI 同步更新
+- [x] A3: Fix the boundary condition in BrightnessSliderView onChange
+  - **File**: `BrightnessSliderView.swift`, onChange(of: display.brightness)
+  - **Problem**: `abs(newValue - localBrightness) > 1` uses `>`, so an exactly 1% change does not sync
+  - **Fix**: change to `abs(newValue - localBrightness) >= 1`
+  - **Verification**: an external 1% brightness change → the UI updates in sync
 
-- [x] A4: 修复 DDCService readBatchVCPCodes 缓存稀疏问题
-  - **文件**: `DDCService.swift` readBatchVCPCodes 方法
-  - **问题**: 从缓存构建字典时 compactMap 跳过缺失 code，返回结果比请求少且无提示
-  - **修法**: 缓存未命中的 code 走实际读取，最终结果显式标注哪些读取失败（返回 `[UInt8: UInt16?]`）
-  - **验证**: 批量读取 11 个 VCP codes → 全部返回（成功或明确失败）
+- [x] A4: Fix the sparse-cache problem in DDCService readBatchVCPCodes
+  - **File**: `DDCService.swift`, readBatchVCPCodes method
+  - **Problem**: when building the dictionary from the cache, compactMap skips missing codes, so the result has fewer entries than requested with no indication
+  - **Fix**: perform an actual read for codes that miss the cache; explicitly mark which reads failed in the final result (return `[UInt8: UInt16?]`)
+  - **Verification**: batch-read 11 VCP codes → all return (either successfully or as an explicit failure)
 
-- [x] A5: 修复 DisplayModeListView 分辨率切换无错误处理
-  - **文件**: `DisplayModeListView.swift` switchTo 方法
-  - **问题**: `ResolutionService.shared.setDisplayMode()` 失败后无重试、无用户提示
-  - **修法**: 失败时显示错误 Toast（用 `@State var errorMessage`），添加一次自动重试
-  - **验证**: 模拟切换失败 → 用户看到错误提示
+- [x] A5: Fix the missing error handling for resolution switching in DisplayModeListView
+  - **File**: `DisplayModeListView.swift`, switchTo method
+  - **Problem**: no retry and no user notice after `ResolutionService.shared.setDisplayMode()` fails
+  - **Fix**: show an error toast on failure (using `@State var errorMessage`) and add one automatic retry
+  - **Verification**: simulate a failed switch → the user sees an error notice
 
-## 批次 B: P1 — 功能异常（11 个）
+## Batch B: P1 — Functional Defects (11 issues)
 
-- [x] B1: 修复 DisplayInfo 亮度初始值硬编码
-  - **文件**: `DisplayInfo.swift` init
-  - **问题**: 内建显示器亮度初始化为 50.0，不读取实际值
-  - **修法**: init 完成后立即调用 `BrightnessService.shared.refreshBrightness(for: self)` 读取真实值
-  - **验证**: 打开 app → 亮度滑块显示真实系统亮度
+- [x] B1: Fix the hardcoded initial brightness value in DisplayInfo
+  - **File**: `DisplayInfo.swift`, init
+  - **Problem**: built-in display brightness is initialized to 50.0 instead of reading the actual value
+  - **Fix**: call `BrightnessService.shared.refreshBrightness(for: self)` immediately after init completes to read the real value
+  - **Verification**: open the app → the brightness slider shows the real system brightness
 
-- [x] B2: 修复 GammaService 单显示器状态 key
-  - **文件**: `GammaService.swift` saveState/loadSavedState
-  - **问题**: UserDefaults key 固定为 `"GammaService.savedAdjustment"`，多显示器只保存最后一个
-  - **修法**: key 改为 `"GammaService.savedAdjustment.\(displayID)"`
-  - **验证**: 两个显示器分别调伽马 → 重启 app → 各自恢复正确值
+- [x] B2: Fix GammaService's single-display state key
+  - **File**: `GammaService.swift`, saveState/loadSavedState
+  - **Problem**: the UserDefaults key is fixed at `"GammaService.savedAdjustment"`, so with multiple displays only the last one is saved
+  - **Fix**: change the key to `"GammaService.savedAdjustment.\(displayID)"`
+  - **Verification**: adjust gamma separately on two displays → restart the app → each restores the correct value
 
-- [x] B3: 修复 MirrorView async defer 提前执行
-  - **文件**: `MirrorView.swift` toggleMirror 方法
-  - **问题**: `defer { isSwitching = false }` 在 async 函数中会在 await 前执行，loading 状态瞬间消失
-  - **修法**: 去掉 defer，在 await 完成后和 catch 块中分别设置 `isSwitching = false`
-  - **验证**: 点击镜像按钮 → loading 动画持续到操作完成
+- [x] B3: Fix MirrorView's async defer executing early
+  - **File**: `MirrorView.swift`, toggleMirror method
+  - **Problem**: `defer { isSwitching = false }` runs before the await in an async function, so the loading state disappears instantly
+  - **Fix**: remove the defer and set `isSwitching = false` separately after the await completes and in the catch block
+  - **Verification**: click the mirror button → the loading animation persists until the operation completes
 
-- [x] B4: 修复 ColorProfileView loadProfiles 竞态条件
-  - **文件**: `ColorProfileView.swift` loadProfiles
-  - **问题**: View 消失后 async task 仍更新 @State，触发 SwiftUI 警告
-  - **修法**: 用 `.task { }` 替代手动 Task（SwiftUI 自动取消），或加 `@State var loadTask: Task<Void, Never>?` 在 onDisappear 取消
-  - **验证**: 快速展开/收起色彩面板 → 无控制台警告
+- [x] B4: Fix the race condition in ColorProfileView loadProfiles
+  - **File**: `ColorProfileView.swift`, loadProfiles
+  - **Problem**: the async task still updates @State after the View disappears, triggering a SwiftUI warning
+  - **Fix**: use `.task { }` instead of a manual Task (SwiftUI cancels it automatically), or add `@State var loadTask: Task<Void, Never>?` and cancel it in onDisappear
+  - **Verification**: expand/collapse the color panel rapidly → no console warnings
 
-- [x] B5: 修复 IntegratedControlView 非 MainActor 状态更新
-  - **文件**: `IntegratedControlView.swift` readFromDevice
-  - **问题**: 非 @MainActor 方法直接更新 @State 变量
-  - **修法**: 方法标记 `@MainActor`，或用 `await MainActor.run { isReading = false }`
-  - **验证**: 编译无并发警告
+- [x] B5: Fix the non-MainActor state update in IntegratedControlView
+  - **File**: `IntegratedControlView.swift`, readFromDevice
+  - **Problem**: a non-@MainActor method updates @State variables directly
+  - **Fix**: mark the method `@MainActor`, or use `await MainActor.run { isReading = false }`
+  - **Verification**: compiles with no concurrency warnings
 
-- [x] B6: 修复 ColorProfileView applyProfile 并发问题
-  - **文件**: `ColorProfileView.swift` applyProfile
-  - **问题**: 函数未标记 @MainActor 但内部更新 UI 状态
-  - **修法**: 标记 `@MainActor`
-  - **验证**: 应用 ICC Profile → 无并发警告
+- [x] B6: Fix the concurrency issue in ColorProfileView applyProfile
+  - **File**: `ColorProfileView.swift`, applyProfile
+  - **Problem**: the function is not marked @MainActor but updates UI state internally
+  - **Fix**: mark it `@MainActor`
+  - **Verification**: apply an ICC profile → no concurrency warnings
 
-- [x] B7: 验证 HiDPIService plist 路径构造（已确认正确，无需修改）
-  - **文件**: `HiDPIService.swift` overridePlistURL
-  - **问题**: 审计指出 vendor/product 路径可能不正确
-  - **修法**: 检查实际生成的 plist 路径与 macOS 期望路径是否匹配（`/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-XXXX/DisplayProductID-YYYY`），修正不一致处
-  - **验证**: 写入 plist → `ls` 确认路径正确 → 重新枚举模式列表出现 HiDPI
+- [x] B7: Verify HiDPIService's plist path construction (confirmed correct, no change needed)
+  - **File**: `HiDPIService.swift`, overridePlistURL
+  - **Problem**: the audit noted the vendor/product path may be incorrect
+  - **Fix**: check whether the actually generated plist path matches the path macOS expects (`/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-XXXX/DisplayProductID-YYYY`) and correct any mismatch
+  - **Verification**: write the plist → `ls` to confirm the path is correct → re-enumerate the mode list and HiDPI appears
 
-- [x] B8: 修复 DisplayDetailView task 无取消
-  - **文件**: `DisplayDetailView.swift` .task(id:)
-  - **问题**: 显示器断开重连后旧 task 可能更新脏数据
-  - **修法**: 用 `Task.checkCancellation()` 在 await 之后检查取消状态
-  - **验证**: 热插拔显示器 → 详情面板数据正确
+- [x] B8: Fix the missing cancellation for DisplayDetailView's task
+  - **File**: `DisplayDetailView.swift`, .task(id:)
+  - **Problem**: after a display is disconnected and reconnected, the old task may update stale data
+  - **Fix**: use `Task.checkCancellation()` after the await to check the cancellation state
+  - **Verification**: hot-plug a display → the details panel data is correct
 
-- [x] B9: 修复 RotationService 返回值不准确
-  - **文件**: `RotationService.swift` setRotation
-  - **问题**: 返回 `IOServiceRequestProbe` 的结果，但这只代表 probe 请求成功，不代表旋转生效
-  - **修法**: probe 之后 sleep 100ms，再用 `CGDisplayRotation(displayID)` 验证实际角度
-  - **验证**: 旋转显示器 → 返回值准确反映是否生效
+- [x] B9: Fix RotationService's inaccurate return value
+  - **File**: `RotationService.swift`, setRotation
+  - **Problem**: it returns the result of `IOServiceRequestProbe`, but that only indicates the probe request succeeded, not that the rotation took effect
+  - **Fix**: sleep 100ms after the probe, then verify the actual angle with `CGDisplayRotation(displayID)`
+  - **Verification**: rotate a display → the return value accurately reflects whether it took effect
 
-- [x] B10: 清理 DisplayInfo.lookupDisplayName 死代码
-  - **文件**: `DisplayInfo.swift` lookupDisplayName
-  - **问题**: 该方法从未被调用（已被 NSScreen.localizedName 替代）
-  - **修法**: 删除整个方法
-  - **验证**: 编译通过
+- [x] B10: Clean up the dead code in DisplayInfo.lookupDisplayName
+  - **File**: `DisplayInfo.swift`, lookupDisplayName
+  - **Problem**: the method is never called (it was replaced by NSScreen.localizedName)
+  - **Fix**: delete the entire method
+  - **Verification**: compiles successfully
 
-- [x] B11: 修复 ResolutionService .permanently vs .forSession 不一致
-  - **文件**: `ResolutionService.swift` vs `ArrangementService.swift`
-  - **问题**: 分辨率用 .permanently，排列用 .forSession，行为不一致
-  - **修法**: 统一改为 `.forSession`（重启后由 macOS 恢复系统设置更安全），或两者都用 `.permanently` 并在文档中说明
-  - **验证**: 切换分辨率/排列 → 重启后行为符合预期
+- [x] B11: Fix the .permanently vs .forSession inconsistency in ResolutionService
+  - **File**: `ResolutionService.swift` vs `ArrangementService.swift`
+  - **Problem**: resolution uses .permanently while arrangement uses .forSession — inconsistent behavior
+  - **Fix**: standardize on `.forSession` (safer, since macOS restores the system settings after a restart), or use `.permanently` for both and document it
+  - **Verification**: switch resolution/arrangement → behavior after restart matches expectations
 
-## 批次 C: P2 — 小问题/代码质量（21 个）
+## Batch C: P2 — Minor Issues / Code Quality (21 issues)
 
-- [x] C1: AutoBrightnessService readAmbientLux 可能阻塞主线程
-  - **修法**: 确保从后台线程调用，或方法内 dispatch 到 background queue
+- [x] C1: AutoBrightnessService readAmbientLux may block the main thread
+  - **Fix**: ensure it is called from a background thread, or dispatch to a background queue inside the method
 
-- [x] C2: AutoBrightnessService lux 缩放常量无文档
-  - **修法**: 添加注释说明 `rawAvg / 1_000_000.0 * 1_000.0` 的推导依据
+- [x] C2: AutoBrightnessService lux scaling constants are undocumented
+  - **Fix**: add a comment explaining the derivation of `rawAvg / 1_000_000.0 * 1_000.0`
 
-- [x] C3: BrightnessSliderView DispatchAfter 无取消
-  - **修法**: 用 `DispatchWorkItem` 替代，或用 SwiftUI `.task` + `Task.sleep`
+- [x] C3: BrightnessSliderView DispatchAfter has no cancellation
+  - **Fix**: use `DispatchWorkItem` instead, or SwiftUI `.task` + `Task.sleep`
 
-- [x] C4: ColorProfileService ICC header 假设 ASCII
-  - **修法**: 添加 encoding 校验，非 ASCII 时 fallback
+- [x] C4: ColorProfileService assumes the ICC header is ASCII
+  - **Fix**: add encoding validation with a fallback for non-ASCII
 
-- [x] C5: DDCService buffer count 捕获脆弱
-  - **修法**: 内联 count 或提取 helper 方法
+- [x] C5: DDCService buffer count capture is fragile
+  - **Fix**: inline the count or extract a helper method
 
-- [x] C6: DisplayModeListView 冗余过滤逻辑
-  - **修法**: `.filter { $0.isNative || (!$0.isHiDPI && $0.isNative) || ($0.isNative) }` 简化为 `.filter { $0.isNative }`
+- [x] C6: DisplayModeListView has redundant filter logic
+  - **Fix**: simplify `.filter { $0.isNative || (!$0.isHiDPI && $0.isNative) || ($0.isNative) }` to `.filter { $0.isNative }`
 
-- [x] C7: ImageAdjustmentView quantization 边界条件
-  - **修法**: `quantLevels >= 256` 改为 `quantLevels >= 255` 或 `== 256`
+- [x] C7: ImageAdjustmentView quantization boundary condition
+  - **Fix**: change `quantLevels >= 256` to `quantLevels >= 255` or `== 256`
 
-- [x] C8: ImageAdjustmentView resetAll 缺 MainActor 保证
-  - **修法**: 确认 GammaService.restoreColorSync() 在 MainActor 上调用
+- [x] C8: ImageAdjustmentView resetAll lacks a MainActor guarantee
+  - **Fix**: confirm GammaService.restoreColorSync() is called on the MainActor
 
-- [x] C9: MenuBarView update check 可能阻塞 UI
-  - **修法**: 添加 timeout、移到后台执行
+- [x] C9: MenuBarView update check may block the UI
+  - **Fix**: add a timeout and move it to the background
 
-- [x] C10: HiDPIService refreshModes 未 await
-  - **修法**: 存储 Task 引用并在适当时候取消
+- [x] C10: HiDPIService refreshModes is not awaited
+  - **Fix**: store the Task reference and cancel it at the appropriate time
 
-- [x] C11: DDCService lock 释放与 callback 顺序不一致
-  - **修法**: 统一为"先 unlock 再 callback"模式
+- [x] C11: DDCService lock release and callback ordering are inconsistent
+  - **Fix**: standardize on the "unlock first, then callback" pattern
 
-- [x] C12: VirtualDisplayService addAndCreate 创建失败不回滚
-  - **修法**: `create()` 失败时从 configs 中移除
+- [x] C12: VirtualDisplayService addAndCreate does not roll back on creation failure
+  - **Fix**: remove it from configs when `create()` fails
 
-- [x] C13: ArrangementService .forSession 可能不是用户预期
-  - **修法**: 与 B11 一起处理
+- [x] C13: ArrangementService .forSession may not be what the user expects
+  - **Fix**: handle together with B11
 
-- [x] C14: UpdateService JSON 解析静默失败
-  - **修法**: 添加 `print("[UpdateService] JSON parse error:")` 日志
+- [x] C14: UpdateService JSON parsing fails silently
+  - **Fix**: add a `print("[UpdateService] JSON parse error:")` log
 
-- [x] C15: BrightnessService withCheckedContinuation 过度使用
-  - **修法**: 直接 dispatch async 返回，或简化为同步调用
+- [x] C15: BrightnessService overuses withCheckedContinuation
+  - **Fix**: dispatch async and return directly, or simplify to a synchronous call
 
-- [x] C16: DisplayDetailView @EnvironmentObject MainActor 未显式标注
-  - **修法**: 添加注释说明
+- [x] C16: DisplayDetailView @EnvironmentObject MainActor is not explicitly annotated
+  - **Fix**: add an explanatory comment
 
-- [x] C17: BrightnessSliderView @ObservedObject 并发安全
-  - **修法**: 确保 DisplayInfo 更新都在主线程
+- [x] C17: BrightnessSliderView @ObservedObject concurrency safety
+  - **Fix**: ensure all DisplayInfo updates happen on the main thread
 
-- [x] C18: DDCService 内存指针理论安全问题
-  - **修法**: 确认 withUnsafeMutableBytes 用法正确（已正确，标记为已审查）
+- [x] C18: DDCService theoretical memory pointer safety issue
+  - **Fix**: confirm withUnsafeMutableBytes is used correctly (already correct, marked as reviewed)
 
-- [x] C19: BrightnessService IOObjectRelease 迭代器清理
-  - **修法**: 确认 iterator 完全耗尽后释放（已正确，标记为已审查）
+- [x] C19: BrightnessService IOObjectRelease iterator cleanup
+  - **Fix**: confirm the iterator is released after being fully exhausted (already correct, marked as reviewed)
 
-- [x] C20: DisplayDetailView ResolutionSliderView 引用
-  - **修法**: 确认组件存在，否则删除引用
+- [x] C20: DisplayDetailView ResolutionSliderView reference
+  - **Fix**: confirm the component exists; otherwise delete the reference
 
-- [x] C21: 全局代码清理 — 删除未使用的 import、注释掉的代码
-  - **修法**: 全局扫描清理
+- [x] C21: Global code cleanup — remove unused imports and commented-out code
+  - **Fix**: global scan and cleanup
 
-## 验收标准
+## Acceptance Criteria
 
 ```bash
-# 1. 编译无警告
+# 1. Compiles with no warnings
 xcodebuild -scheme FreeDisplay -configuration Debug build 2>&1 | grep -E "warning:|error:" | head -20
 
-# 2. 手动测试清单
-# - 打开 app → 亮度显示真实值（非 50%）
-# - 热插拔显示器 → 无崩溃
-# - 调伽马 → 关闭面板 → 屏幕恢复
-# - 镜像操作 → loading 动画全程显示
-# - 色彩 Profile 切换 → 无控制台警告
-# - HiDPI 开关 → plist 写入正确路径
+# 2. Manual test checklist
+# - Open the app → brightness shows the real value (not 50%)
+# - Hot-plug a display → no crash
+# - Adjust gamma → close the panel → the screen recovers
+# - Mirror operation → the loading animation shows throughout
+# - Color profile switch → no console warnings
+# - HiDPI switch → the plist is written to the correct path
 ```
