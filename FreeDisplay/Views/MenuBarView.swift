@@ -262,7 +262,13 @@ struct MenuBarView: View {
 
         } // end VStack
         .frame(width: 340)
-        .frame(maxHeight: 700)
+        // minHeight is what makes the menu appear at all. A ScrollView has no ideal height of
+        // its own — it takes whatever it is offered — and a `.window` MenuBarExtra sizes itself
+        // to its content's ideal size. Offered nothing, asked for nothing: the scroll view
+        // collapsed to zero and the popover opened 53pt tall, showing the footer and its Quit
+        // button and not one row of anything else. maxHeight alone cannot help; it caps a
+        // height that was never asked for.
+        .frame(minHeight: 480, maxHeight: 700)
         .padding(.vertical, 8)
         .onReceive(displayManager.$displays) { newDisplays in
             let validIDs = Set(newDisplays.map { $0.displayID })
