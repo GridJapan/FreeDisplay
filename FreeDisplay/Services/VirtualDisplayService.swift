@@ -69,6 +69,11 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         activeDisplayObjects.values.contains { $0.displayID == displayID }
     }
 
+    /// The config behind a live virtual display, or nil for a physical one.
+    func configID(forDisplayID displayID: CGDirectDisplayID) -> UUID? {
+        activeDisplayObjects.first { $0.value.displayID == displayID }?.key
+    }
+
     // MARK: - Create / Destroy
 
     /// Creates a virtual display from the given config using CGVirtualDisplay private API.
@@ -187,7 +192,195 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         // Back on main actor — store the strong reference
         activeDisplayObjects[config.id] = virtualDisplay
         activeConfigIDs.insert(config.id)
+
+        restoreSavedMode(for: config, displayID: virtualDisplay.displayID)
         return true
+    }
+
+    // MARK: - Remembered resolution
+
+    private let savedModesKey = "fd.VirtualDisplayModes"
+
+    /// The resolution each virtual display was last switched to, keyed by config UUID.
+    ///
+    /// Not by display ID, and not by mode ID: a virtual display gets a fresh CGDirectDisplayID
+    /// every time it is created (25, 29, 42, 46 within one afternoon here), and mode IDs are
+    /// assigned per panel, so both are gone by the time there is anything to restore. The config
+    /// UUID is the only handle that outlives the panel, and a width×height is the only
+    /// description of a mode that outlives the panel's mode list.
+    ///
+    /// This is separate from `config.width`/`height`, which describe the panel itself — the
+    /// largest the display can be. This is which of its modes was chosen.
+    private var savedModes: [String: [String: Int]] {
+        get { UserDefaults.standard.dictionary(forKey: savedModesKey) as? [String: [String: Int]] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: savedModesKey) }
+    }
+
+    /// Records the mode a virtual display was switched to, so creating it again restores it.
+    /// Call with the panel's own size to forget the override.
+    func rememberMode(width: Int, height: Int, forConfig id: UUID) {
+        var all = savedModes
+        let name = configs.first(where: { $0.id == id })?.name ?? "?"
+        if let config = configs.first(where: { $0.id == id }), config.width == width, config.height == height {
+            all.removeValue(forKey: id.uuidString)
+            #if DEBUG
+            print("[VirtualDisplayService] \(name) is back at its panel size — override forgotten")
+            #endif
+        } else {
+            all[id.uuidString] = ["width": width, "height": height]
+            #if DEBUG
+            print("[VirtualDisplayService] remembered \(width)x\(height) for \(name)")
+            #endif
+        }
+        savedModes = all
+    }
+
+    func forgetMode(forConfig id: UUID) {
+        var all = savedModes
+        all.removeValue(forKey: id.uuidString)
+        savedModes = all
+    }
+
+    // MARK: - Holding a chosen resolution
+
+    private var modeWatchTimer: Timer?
+    private var pendingSizes: [UUID: (size: Size, since: Date)] = [:]
+
+    private struct Size: Equatable {
+        let width: Int
+        let height: Int
+    }
+
+    /// How long a new size must survive on its own before it counts as chosen rather than as a
+    /// glitch. Comfortably above the ~14s revert seen in testing: mistaking a revert for a
+    /// choice loses the resolution the user picked, while being too patient only means an
+    /// unwanted size lingers a few seconds longer before being corrected.
+    private static let settleSeconds: TimeInterval = 20
+
+    /// Watches each virtual display's resolution and holds it where it was put.
+    ///
+    /// A resolution chosen in System Settings does not stay chosen. Measured on a freshly
+    /// created 2560×1440 panel: 2048×1280 applied straight away, then reverted on its own 14
+    /// seconds later, with nothing on screen to explain it. FreeDisplay's own menu hides the
+    /// same fault behind a retry (`DisplayModeListView` re-fires after 200ms, and that comment
+    /// predates this fork) — but nothing retries on behalf of System Settings.
+    ///
+    /// Polled, because there is no event to hang this on: `CGDisplayRegisterReconfiguration`
+    /// never fires for these changes. A probe that logged every callback for 40 seconds caught
+    /// the switch and the revert by polling and saw not one callback for either.
+    ///
+    /// Telling a revert from a deliberate change is the subtle part, since a display at the
+    /// wrong size looks identical either way. The tell is direction: a revert always lands back
+    /// on the panel's own size, because that is what the display falls back to. A change made
+    /// in System Settings lands on one of the smaller modes. So a drift *away* from the panel
+    /// size is someone choosing something and is adopted; a drift *to* the panel size, when the
+    /// remembered size was smaller, is the fault and gets undone.
+    ///
+    /// This is wrong in exactly one case: choosing the panel's own size in System Settings,
+    /// when a smaller one was remembered, looks like a revert and is fought once. Setting the
+    /// same size from FreeDisplay's own menu goes through `rememberMode` and works, and the
+    /// alternative — trusting every drift — hands the resolution back to the fault this exists
+    /// to correct.
+    func startWatchingModes() {
+        modeWatchTimer?.invalidate()
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.holdRememberedModes() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        modeWatchTimer = timer
+    }
+
+    private func holdRememberedModes() {
+        for (configID, virtualDisplay) in activeDisplayObjects {
+            let displayID = virtualDisplay.displayID
+            guard displayID != kCGNullDirectDisplay,
+                  let mode = CGDisplayCopyDisplayMode(displayID) else { continue }
+            let now = Size(width: mode.width, height: mode.height)
+            let name = configs.first(where: { $0.id == configID })?.name ?? "?"
+
+            guard let saved = savedModes[configID.uuidString],
+                  let w = saved["width"], let h = saved["height"] else {
+                // Nothing remembered yet: whatever it settles at becomes the baseline.
+                noteSettling(now, for: configID, name: name)
+                continue
+            }
+            guard now != Size(width: w, height: h) else {
+                pendingSizes.removeValue(forKey: configID)
+                continue
+            }
+
+            guard let config = configs.first(where: { $0.id == configID }) else { continue }
+            let panelSize = Size(width: config.width, height: config.height)
+            let revertedToPanel = now == panelSize && Size(width: w, height: h) != panelSize
+
+            if revertedToPanel {
+                print("[VirtualDisplayService] \(name) fell back to \(now.width)x\(now.height), " +
+                      "restoring \(w)x\(h)")
+                applyMode(width: w, height: h, on: displayID, name: name)
+                pendingSizes.removeValue(forKey: configID)
+            } else {
+                // A size someone picked. Adopt it, once it proves it is staying.
+                noteSettling(now, for: configID, name: name)
+            }
+        }
+    }
+
+    /// Accepts a size as chosen once it has stayed put for `settleSeconds`.
+    private func noteSettling(_ size: Size, for configID: UUID, name: String) {
+        guard let pending = pendingSizes[configID], pending.size == size else {
+            pendingSizes[configID] = (size, Date())
+            return
+        }
+        guard Date().timeIntervalSince(pending.since) >= Self.settleSeconds else { return }
+        #if DEBUG
+        print("[VirtualDisplayService] \(name) held \(size.width)x\(size.height) — accepting")
+        #endif
+        rememberMode(width: size.width, height: size.height, forConfig: configID)
+        pendingSizes.removeValue(forKey: configID)
+    }
+
+    private func applyMode(width: Int, height: Int, on displayID: CGDirectDisplayID, name: String) {
+        let modes = CGDisplayCopyAllDisplayModes(displayID, nil) as? [CGDisplayMode] ?? []
+        guard let target = modes.first(where: { $0.width == width && $0.height == height }) else {
+            print("[VirtualDisplayService] \(width)x\(height) is gone for \(name)")
+            return
+        }
+        var cfg: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&cfg) == .success else { return }
+        CGConfigureDisplayWithDisplayMode(cfg, displayID, target, nil)
+        let result = CGCompleteDisplayConfiguration(cfg, .permanently)
+        #if DEBUG
+        print("[VirtualDisplayService] applied \(width)x\(height) on \(name): \(result == .success)")
+        #endif
+    }
+
+    /// Applies the remembered mode to a display that has just been created.
+    ///
+    /// Deliberately quiet on failure: a mode that no longer exists (the panel was recreated at a
+    /// smaller size, or the standardModes list changed) leaves the display at its native size,
+    /// which is a working display and not an error worth interrupting anyone over.
+    private func restoreSavedMode(for config: VirtualDisplayConfig, displayID: CGDirectDisplayID) {
+        guard let saved = savedModes[config.id.uuidString],
+              let w = saved["width"], let h = saved["height"],
+              w != config.width || h != config.height else { return }
+
+        Task { @MainActor in
+            // WindowServer has just registered the display; give its mode list a moment to
+            // populate before asking for it.
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            let modes = CGDisplayCopyAllDisplayModes(displayID, nil) as? [CGDisplayMode] ?? []
+            guard let target = modes.first(where: { $0.width == w && $0.height == h }) else {
+                print("[VirtualDisplayService] remembered mode \(w)×\(h) is gone for \(config.name)")
+                return
+            }
+            var cfg: CGDisplayConfigRef?
+            guard CGBeginDisplayConfiguration(&cfg) == .success else { return }
+            CGConfigureDisplayWithDisplayMode(cfg, displayID, target, nil)
+            let result = CGCompleteDisplayConfiguration(cfg, .permanently)
+            #if DEBUG
+            print("[VirtualDisplayService] restored \(w)×\(h) on \(config.name): \(result == .success)")
+            #endif
+        }
     }
 
     /// Destroys all active virtual displays. Called on app termination to avoid
@@ -232,6 +425,7 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
     func removeConfig(id: UUID) {
         destroy(configID: id)
         configs.removeAll { $0.id == id }
+        forgetMode(forConfig: id)
         saveConfigs()
     }
 
@@ -260,7 +454,10 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
                     }
                     _ = await create(config: config)
                 }
+                startWatchingModes()
             }
+        } else {
+            startWatchingModes()
         }
     }
 

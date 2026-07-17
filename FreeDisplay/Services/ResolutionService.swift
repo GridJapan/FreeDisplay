@@ -123,6 +123,7 @@ final class ResolutionService: @unchecked Sendable {
         if success {
             // Persist so we can re-apply after sleep/wake
             persistModeID(mode.ioDisplayModeID, for: displayID)
+            rememberVirtualDisplayMode(mode, for: targetID)
             return true
         }
 
@@ -133,8 +134,20 @@ final class ResolutionService: @unchecked Sendable {
         let fallbackSuccess = await cgsFallback(modeID: UInt32(bitPattern: cgMode.ioDisplayModeID), on: targetID)
         if fallbackSuccess {
             persistModeID(mode.ioDisplayModeID, for: displayID)
+            rememberVirtualDisplayMode(mode, for: targetID)
         }
         return fallbackSuccess
+    }
+
+    /// Records a virtual display's chosen resolution against its config, which survives the
+    /// panel being destroyed and recreated.
+    ///
+    /// `persistModeID` above cannot do this job for virtual displays: it is keyed by display ID
+    /// and stores a mode ID, and a virtual display is handed a new one of each every time it is
+    /// created, so by the time the value is wanted the key to find it under is gone.
+    private func rememberVirtualDisplayMode(_ mode: DisplayMode, for displayID: CGDirectDisplayID) {
+        guard let configID = VirtualDisplayService.shared.configID(forDisplayID: displayID) else { return }
+        VirtualDisplayService.shared.rememberMode(width: mode.width, height: mode.height, forConfig: configID)
     }
 
     // MARK: - Mirror resolution
