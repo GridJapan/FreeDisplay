@@ -619,11 +619,17 @@ final class DDCService: ObservableObject, @unchecked Sendable {
 
     /// Asynchronously write a VCP value, retrying up to 3 times.
     /// Invalidates the cache for the written VCP code on success.
+    ///
+    /// `completion` runs on `ddcQueue`, never on the main queue. It is `@Sendable` so that a
+    /// closure written inside a `@MainActor` caller does not inherit that isolation: an inherited
+    /// `@MainActor` closure body traps here (`dispatch_assert_queue`) the moment it touches
+    /// isolated state or passes a closure to something like `NSLocking.withLock`. Hop explicitly
+    /// if the completion needs the main queue.
     func writeAsync(
         displayID: CGDirectDisplayID,
         command: UInt8,
         value: UInt16,
-        completion: ((Bool) -> Void)? = nil
+        completion: (@Sendable (Bool) -> Void)? = nil
     ) {
         ddcQueue.async {
             for attempt in 0..<3 {
@@ -643,10 +649,14 @@ final class DDCService: ObservableObject, @unchecked Sendable {
 
     /// Asynchronously read a VCP value.
     /// Returns a cached result if available and not expired (5-second TTL).
+    ///
+    /// `completion` runs on `ddcQueue` — except on a cache hit, where it runs synchronously on the
+    /// caller's queue. Because the queue therefore varies with cache state, the completion is
+    /// `@Sendable` (see `writeAsync`) and must not assume any particular actor.
     func readAsync(
         displayID: CGDirectDisplayID,
         command: UInt8,
-        completion: @escaping ((current: UInt16, max: UInt16)?) -> Void
+        completion: @escaping @Sendable ((current: UInt16, max: UInt16)?) -> Void
     ) {
         // Fast path: return cached value if still fresh
         cacheLock.lock()

@@ -1,3 +1,95 @@
+> **GridJapan fork.** This fork exists to fix one deterministic crash in the DDC brightness path.
+> Everything below the horizontal rule is the upstream README, unchanged.
+> Upstream: [huberdf/FreeDisplay](https://github.com/huberdf/FreeDisplay).
+
+# The crash this fork fixes
+
+FreeDisplay dies with `EXC_BREAKPOINT (SIGTRAP)` the first time it successfully writes brightness
+over DDC to an external display. Not a race — if you reach the path, you crash.
+
+**How to reproduce.** Put the cursor on an external display that answers DDC, then press a
+brightness key (or drag FreeDisplay's own brightness slider). The app is gone before the monitor
+finishes dimming.
+
+**Why it took us 17 hours to hit it.** `BrightnessKeyService` only intercepts brightness keys while
+the cursor sits on an *external* display — on the built-in display the keys pass through to macOS
+and nothing of ours runs. So an install can look perfectly healthy until the first time you happen
+to adjust brightness with the pointer parked on the external monitor.
+
+## Root cause
+
+`DDCService.writeAsync` invokes its completion on `ddcQueue`, never hopping to main:
+
+```swift
+ddcQueue.async {
+    ...
+    completion?(true)   // ← on ddcQueue
+}
+```
+
+Both callers write that completion inside a `@MainActor` method (`BrightnessService.setBrightness`
+and `.setBrightnessSmooth`), and a closure literal **inherits the enclosing isolation**. The
+completion is therefore `@MainActor`-isolated, and so is every closure nested in it — including the
+one handed to `NSLocking.withLock`:
+
+```swift
+) { [weak self] success in
+    guard let self else { return }
+    if success {
+        self.ddcAvailableLock.withLock { self.ddcAvailable[displayID] = true }   // ← trap
+```
+
+Passing that isolated closure where a non-isolated `@Sendable` function is expected makes the
+compiler emit an isolation-asserting thunk. On `ddcQueue` the assert fails, and Swift's concurrency
+runtime traps exactly as designed:
+
+```
+_dispatch_assert_queue_fail
+dispatch_assert_queue
+_swift_task_checkIsolatedSwift
+swift_task_isCurrentExecutorWithFlagsImpl
+closure #1 in closure #1 in closure #6 in BrightnessService.setBrightnessSmooth(_:for:isAutoAdjust:)
+specialized NSLocking.withLock<A>(_:)
+closure #1 in closure #6 in BrightnessService.setBrightnessSmooth(_:for:isAutoAdjust:)
+closure #1 in DDCService.writeAsync(displayID:command:value:completion:)
+```
+
+`refreshBrightness` survives the same callback only by accident: it calls `lock()` / `unlock()`
+directly, so no closure — and no thunk — is ever created.
+
+## The fix
+
+Mark both completion parameters `@Sendable`. A `@Sendable` closure literal does not inherit actor
+isolation, so no assert is emitted and the compiler starts checking these callbacks for real. The
+three existing call sites need no changes: they only touch lock-protected state, a `nonisolated`
+software-brightness fallback, and an explicit `Task { @MainActor in … }` hop.
+
+```diff
+-        completion: ((Bool) -> Void)? = nil
++        completion: (@Sendable (Bool) -> Void)? = nil
+```
+
+This also defuses a latent trap in `readAsync`, whose completion runs on `ddcQueue` on a cache miss
+but synchronously on the *caller's* queue on a cache hit. The queue depended on cache state; now the
+type system says so.
+
+## How we found it
+
+We hit this while running [gjPiP](https://github.com/GridJapan/gjPiPWindow), a GridJapan in-house
+picture-in-picture app that mirrors any display — including FreeDisplay's virtual ones — into an
+always-on-top window. FreeDisplay crashed, its virtual display vanished, and the PiP window closed
+with it, so gjPiP was the obvious suspect.
+
+**It was not the cause, and neither is any other capture tool.** gjPiP never touches DDC,
+brightness, or display reconfiguration; it only calls ScreenCaptureKit and a CoreGraphics event tap.
+The crash was triggered by a brightness key, and the only reason the two coincided is that the PiP
+window put the cursor on the external monitor — which is precisely the condition
+`BrightnessKeyService` requires before it does anything at all.
+
+Reported on macOS 26.5.2 (25F84), Apple silicon, against upstream `07ba072`.
+
+---
+
 # FreeDisplay
 
 > **Free & open-source alternative to [BetterDisplay](https://github.com/waydabber/BetterDisplay)** — all the core display management features, zero cost.
