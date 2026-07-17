@@ -212,10 +212,20 @@ class DisplayManager: ObservableObject {
     /// Positions all external displays above the built-in display, centered horizontally.
     /// Controlled by the UserDefaults key `fd.arrangement.externalAbove`.
     /// Does nothing if there is no built-in display or no external displays.
+    ///
+    /// Skipped entirely while an external display is the main one. macOS makes whichever display
+    /// holds origin (0, 0) main, so moving the externals would drag the user's chosen main display
+    /// off the origin and hand main back to the built-in — roughly half a second after they picked
+    /// it, since `.setMainFlag` is itself one of the events that schedules this.
     func arrangeExternalAboveBuiltin() {
         guard UserDefaults.standard.bool(forKey: "fd.arrangement.externalAbove") else { return }
 
         guard let builtin = displays.first(where: { $0.isBuiltin }) else { return }
+
+        // Queried live rather than read off `builtin.isMain`, which is refreshed asynchronously
+        // and can still hold the pre-change value when this fires.
+        guard CGDisplayIsMain(builtin.displayID) != 0 else { return }
+
         let externals = displays.filter { !$0.isBuiltin }
         guard !externals.isEmpty else { return }
 
