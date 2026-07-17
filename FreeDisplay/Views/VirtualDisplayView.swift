@@ -166,9 +166,10 @@ struct CreateVirtualDisplayForm: View {
     @State private var autoCreate: Bool = true
 
     private let presets: [(label: String, width: Int, height: Int)] = [
-        ("1920×1080 (FHD)", 1920, 1080),
-        ("2560×1440 (QHD)", 2560, 1440),
-        ("3840×2160 (4K)",  3840, 2160),
+        ("1920×1080 (FHD)",   1920, 1080),
+        ("1920×1200 (WUXGA)", 1920, 1200),
+        ("2560×1440 (QHD)",   2560, 1440),
+        ("3840×2160 (4K)",    3840, 2160),
     ]
 
     var body: some View {
