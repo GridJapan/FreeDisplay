@@ -79,11 +79,25 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
 
     /// Offered on top of the panel's own size, whenever they fit inside it.
     ///
-    /// macOS builds a ladder of scaled modes by itself, but only in the panel's own aspect
-    /// ratio and 4:3 — under a 16:9 panel it will hand you 1920×1080 and 1600×1200 and never
-    /// 1920×1200. A 16:10 size has to be declared to exist at all.
+    /// macOS derives a ladder of scaled modes on its own, but a sparse and opinionated one:
+    /// under a 2560×1440 panel it hands out 1920×1080, 1600×900, 1280×720 and a few 4:3 sizes,
+    /// and nothing else — neither 1920×1200 nor 2048×1152. Anything else has to be declared.
+    ///
+    /// **Two declared sizes close in pixel count cannot coexist.** The window server silently
+    /// keeps one and drops the other; `apply` still reports success, and the loser simply never
+    /// reaches `CGDisplayCopyAllDisplayModes`. Measured on a 2560×1440 panel, and deterministic
+    /// across restarts — not a race, not a cache, not an artefact of declaration order:
+    ///
+    ///     2048×1152 (2,359,296) + 1920×1200 (2,304,000)   2.4% apart → one dropped
+    ///     2000×1125 (2,250,000) + 1920×1200 (2,304,000)   2.4% apart → one dropped
+    ///     2048×1152 (2,359,296) + 2000×1125 (2,250,000)   4.6% apart → both kept
+    ///     2048×1280 (2,621,440) + 2048×1152 (2,359,296)  10.0% apart → both kept
+    ///
+    /// Where the cutoff really lies is unknown; only that ~2.4% loses and ~4.6% survives. Keep
+    /// entries well spaced, and check the real mode list after adding one — nothing warns you,
+    /// the size just isn't there.
     private static let standardModes: [(width: Int, height: Int)] = [
-        (1920, 1200),
+        (2048, 1280),
     ]
 
     /// Multiple panels are ordinary here — configs is a list and every autoCreate entry is
