@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FreeDisplay — 存在しないモニタを、macOSに生やす。</title>
-<meta name="description" content="物理モニタなしでHiDPI仮想ディスプレイを作成できる、無料のmacOSメニューバーアプリです。実モニタの明るさ・コントラストもDDCで制御できます。公式版のバグ4つを修正した GridJapan fork。">
+<meta name="description" content="物理モニタなしでHiDPI仮想ディスプレイを作成できる、無料のmacOSメニューバーアプリです。gjPiPWindow に完全対応。公式版のバグ修正と機能追加を施した GridJapan fork。">
 <meta property="og:title" content="FreeDisplay — 存在しないモニタを、macOSに生やす。">
-<meta property="og:description" content="物理モニタなしでHiDPI仮想ディスプレイを作成できる、無料のmacOSメニューバーアプリです。公式版のバグ4つを修正した GridJapan fork。">
+<meta property="og:description" content="物理モニタなしでHiDPI仮想ディスプレイを作成できる、無料のmacOSメニューバーアプリです。gjPiPWindow に完全対応。公式版のバグ修正と機能追加を施した GridJapan fork。">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://gridjapan.github.io/FreeDisplay/assets/settings_arrange.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23F8F1D6'/%3E%3Ccircle cx='16' cy='14' r='8' fill='%23C2342B' stroke='%230E1430' stroke-width='3'/%3E%3Cline x1='16' y1='22' x2='16' y2='30' stroke='%230E1430' stroke-width='3'/%3E%3C/svg%3E">
@@ -113,6 +113,7 @@ section{position:relative;max-width:1180px;margin:0 auto;padding:70px 28px 8px}
 .bug .stamp{position:absolute;top:14px;right:16px;font-family:var(--cf);font-size:26px;
   font-weight:700;color:var(--a2);border:3px solid var(--a2);border-radius:6px;
   padding:0 10px;transform:rotate(8deg);background:#fff}
+.bug .stamp.add{color:var(--a1);border-color:var(--a1)}
 
 /* ===== feature cards ===== */
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:10px}
@@ -162,8 +163,8 @@ footer a{color:var(--a2);text-decoration:none;font-weight:700}
 <nav>
   <a class="logo" href="#"><span class="pin"></span>FreeDisplay</a>
   <a class="lk" href="#virtual">仮想ディスプレイ</a>
-  <a class="lk" href="#bugs">バグ修正</a>
   <a class="lk" href="#features">機能</a>
+  <a class="lk" href="#bugs">直した・足した</a>
   <a class="lk" href="#install">インストール</a>
   <a class="lk" href="https://gridjapan.github.io/gjPiPWindow/">gjPiP</a>
   <a class="gh" href="https://github.com/GridJapan/FreeDisplay">GitHub</a>
@@ -195,10 +196,10 @@ footer a{color:var(--a2);text-decoration:none;font-weight:700}
 <div class="band">
   <div class="band-in">
     <span class="tape"></span>
-    <h2>公式版のバグ<em>4つ</em>、修正済み。</h2>
-    <p>GridJapan/FreeDisplay は、公式 FreeDisplay（huberdf 版）の fork です。
-    公式版に現存する4件のバグを、原因を特定して修正してあります。
-    加えて、仮想ディスプレイの解像度を記憶するようにしました。</p>
+    <h2>gjPiPWindow に、<em>完全対応</em>。</h2>
+    <p>FreeDisplay（GridJapan fork）は <a href="https://gridjapan.github.io/gjPiPWindow/" style="color:var(--a2);font-weight:700">gjPiPWindow</a> に完全対応しています。
+    3枚の仮想ディスプレイを常時使用するために整備した結果、公式版の4つのバグを修正し、
+    解像度記憶・プリセット・個体識別・個別終了の4系統の機能を追加しました。</p>
   </div>
 </div>
 
@@ -224,14 +225,31 @@ footer a{color:var(--a2);text-decoration:none;font-weight:700}
   </div>
 </section>
 
-<section id="bugs">
+<section id="features">
   <div class="sh">
     <span class="no">02</span>
-    <h2>公式版の4つのバグを修正</h2>
-    <span class="tl">found &amp; fixed</span>
+    <h2>機能</h2>
   </div>
-  <p class="lede">4件とも、公式版（huberdf/FreeDisplay）に現在も残っている実バグです。
-  それぞれ原因を1行で書ける所まで特定してから直しました。詳細は
+  <div class="cards">
+    <div class="card"><h3>HiDPI仮想ディスプレイ</h3><p>物理モニタなしでディスプレイを作成できます。複数枚を同時に持てます。</p></div>
+    <div class="card"><h3>DDC 明るさ・コントラスト</h3><p>外部モニタのハードウェア設定を IOKit I2C で直接制御します。</p></div>
+    <div class="card"><h3>輝度キー ＋ HUD</h3><p>キーボードの明るさキーを外部モニタでも効かせ、HUD を表示します。</p></div>
+    <div class="card"><h3>自動明るさ</h3><p>時刻ベースで明るさを自動調整できます。</p></div>
+    <div class="card"><h3>配置と主ディスプレイ</h3><p>配置エディタと主ディスプレイの切り替えを備えます。</p></div>
+    <div class="card"><h3>カラープロファイル</h3><p>ディスプレイごとに ICC プロファイルを切り替えられます。</p></div>
+    <div class="card"><h3>画質調整</h3><p>ガンマ・コントラスト・色温度・色反転をソフトウェアで調整できます。</p></div>
+    <div class="card"><h3>プリセット</h3><p>ディスプレイ構成を保存して呼び出せます。</p></div>
+  </div>
+</section>
+
+<section id="bugs">
+  <div class="sh">
+    <span class="no">03</span>
+    <h2>3枚並べるために、直した・足した</h2>
+    <span class="tl">for the gjPiP rig</span>
+  </div>
+  <p class="lede">この fork は、仮想ディスプレイを3枚常時並べて gjPiP で使うために整備しました。
+  その過程で踏んだ公式版のバグ4件と、足りなかった機能4つです。詳細は
   <a href="https://github.com/GridJapan/FreeDisplay#readme">README</a> にあります。</p>
   <div class="bugs">
     <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
@@ -248,39 +266,24 @@ footer a{color:var(--a2);text-decoration:none;font-weight:700}
     <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
       <h3>同じ解像度の仮想ディスプレイは3台目が作れない</h3>
       <p>重複ガードが ID ではなく縦横サイズで判定しているためです。</p></div>
-  </div>
-</section>
-
-<section id="remember">
-  <div class="sh">
-    <span class="no">03</span>
-    <h2>選んだ解像度が、勝手に戻らない</h2>
-    <span class="tl">GridJapan addition</span>
-  </div>
-  <p class="lede">公式版では、システム設定で仮想ディスプレイの解像度を変えても、しばらくすると元に戻ります。
-  GridJapan 版は<b>選んだ解像度を記憶して保持</b>します。Mac を再起動しても残ります。</p>
-</section>
-
-<section id="features">
-  <div class="sh">
-    <span class="no">04</span>
-    <h2>機能</h2>
-  </div>
-  <div class="cards">
-    <div class="card"><h3>HiDPI仮想ディスプレイ</h3><p>物理モニタなしでディスプレイを作成できます。複数枚を同時に持てます。</p></div>
-    <div class="card"><h3>DDC 明るさ・コントラスト</h3><p>外部モニタのハードウェア設定を IOKit I2C で直接制御します。</p></div>
-    <div class="card"><h3>輝度キー ＋ HUD</h3><p>キーボードの明るさキーを外部モニタでも効かせ、HUD を表示します。</p></div>
-    <div class="card"><h3>自動明るさ</h3><p>時刻ベースで明るさを自動調整できます。</p></div>
-    <div class="card"><h3>配置と主ディスプレイ</h3><p>配置エディタと主ディスプレイの切り替えを備えます。</p></div>
-    <div class="card"><h3>カラープロファイル</h3><p>ディスプレイごとに ICC プロファイルを切り替えられます。</p></div>
-    <div class="card"><h3>画質調整</h3><p>ガンマ・コントラスト・色温度・色反転をソフトウェアで調整できます。</p></div>
-    <div class="card"><h3>プリセット</h3><p>ディスプレイ構成を保存して呼び出せます。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>選んだ解像度を記憶して保持</h3>
+      <p>システム設定で選んだ解像度を記憶し、再起動後も保持します。公式版では、しばらくすると勝手に元へ戻ります。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>解像度プリセットを追加</h3>
+      <p>1920×1200 と 2048×1280 を、作成時の選択肢に加えました。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>仮想ディスプレイの個体識別</h3>
+      <p>名前と serial を1台ずつ分けました。macOS が3枚の配置を正しく記憶・復元できるようになります。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>1台ずつ閉じられる</h3>
+      <p>従来は一括で閉じるしかありませんでした。個別に閉じられます。</p></div>
   </div>
 </section>
 
 <section id="gjpip">
   <div class="sh">
-    <span class="no">05</span>
+    <span class="no">04</span>
     <h2>見えない画面は、gjPiPで見る</h2>
     <span class="tl">works together</span>
   </div>
@@ -302,7 +305,7 @@ footer a{color:var(--a2);text-decoration:none;font-weight:700}
 
 <section id="install">
   <div class="sh">
-    <span class="no">06</span>
+    <span class="no">05</span>
     <h2>インストール</h2>
   </div>
   <p class="lede">ソースからビルドします。リポジトリに Xcode プロジェクトを同梱しているので、
