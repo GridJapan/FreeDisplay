@@ -126,6 +126,29 @@ struct VirtualDisplayView: View {
                     .cornerRadius(4)
             }
 
+            // Stop / start button.
+            //
+            // The service could always close one display on its own (`destroy(configID:)`
+            // keeps the config), but nothing offered it: the row's only control deleted the
+            // config outright, and the ✕ in the menu footer quits the whole app — taking every
+            // virtual display with it, since they live and die with the process. With more
+            // than one display configured, "close that one" had no way to be said.
+            Button(action: {
+                Task { @MainActor in
+                    if active {
+                        service.destroy(configID: config.id)
+                    } else {
+                        await service.create(config: config)
+                    }
+                }
+            }) {
+                Label(active ? "停用" : "启用", systemImage: active ? "stop.circle" : "play.circle")
+                    .font(.caption)
+                    .foregroundColor(active ? .orange : .blue)
+            }
+            .buttonStyle(.plain)
+            .help(active ? "关闭此虚拟显示器（保留配置）" : "启动此虚拟显示器")
+
             // Delete button
             Button(action: {
                 configToDelete = config.id
@@ -135,7 +158,7 @@ struct VirtualDisplayView: View {
                     .foregroundColor(.red)
             }
             .buttonStyle(.plain)
-            .help("删除此虚拟显示器")
+            .help("删除此虚拟显示器配置")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 import IOKit
@@ -251,9 +252,9 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
                     // After a crash, a virtual display from the previous session may
                     // still be registered with WindowServer. Skip creation if an online
                     // virtual display with matching dimensions already exists.
-                    guard !virtualDisplayAlreadyExists(width: config.width, height: config.height) else {
+                    guard !virtualDisplayAlreadyExists(named: identity(for: config).name) else {
                         #if DEBUG
-                        print("[VirtualDisplayService] autoCreate skipped — virtual display \(config.width)×\(config.height) already online")
+                        print("[VirtualDisplayService] autoCreate skipped — \(identity(for: config).name) already online")
                         #endif
                         continue
                     }
@@ -266,7 +267,14 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
     /// Returns true if any currently-online display matches the given pixel dimensions and
     /// has no associated IOKit service port (indicating it is a virtual/software display).
     /// Used by autoCreate to avoid duplicating a display that survived an app crash.
-    private func virtualDisplayAlreadyExists(width: Int, height: Int) -> Bool {
+    /// Whether a virtual display already carrying this name is online.
+    ///
+    /// Keyed on the name, not the resolution. Matching by resolution meant two configs of the
+    /// same size could never both exist — the second was mistaken for the first and skipped —
+    /// and it did so unreliably, since whether the first had finished registering decided the
+    /// outcome. Three 2560×1440 configs produced two displays because of it. Names are unique
+    /// per ordinal, which is what makes them usable as identity.
+    private func virtualDisplayAlreadyExists(named name: String) -> Bool {
         var displayCount: UInt32 = 0
         CGGetOnlineDisplayList(0, nil, &displayCount)
         guard displayCount > 0 else { return false }
@@ -277,9 +285,10 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
             // Physical displays always have a non-null service port.
             let servicePort = CGDisplayIOServicePort(id)
             guard servicePort == 0 || servicePort == MACH_PORT_NULL else { continue }
-            let w = Int(CGDisplayPixelsWide(id))
-            let h = Int(CGDisplayPixelsHigh(id))
-            if w == width && h == height { return true }
+            let screen = NSScreen.screens.first {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == id
+            }
+            if screen?.localizedName == name { return true }
         }
         return false
     }
