@@ -232,7 +232,7 @@ struct MenuBarView: View {
 
         // Version and quit — pinned to the bottom, does not scroll with the content
         HStack {
-            Text("FreeDisplay v\(updateService.currentVersion)")
+            Text("FreeDisplay(GridJapanEdition) v\(updateService.currentVersion)")
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
