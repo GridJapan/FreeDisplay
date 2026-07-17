@@ -74,11 +74,39 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
     /// Returns true on success. The CGVirtualDisplay object is retained in `activeDisplayObjects`.
     /// The ENTIRE creation (descriptor build + CGVirtualDisplay init + apply) runs off the
     /// main actor via `runWithTimeout` because any of these calls can block on WindowServer IPC.
+    /// Base name for the first panel; the ones after it get " 2", " 3"… appended.
+    private static let baseDisplayName = "FreeDisplay GridJapan"
+
+    /// Offered on top of the panel's own size, whenever they fit inside it.
+    ///
+    /// macOS builds a ladder of scaled modes by itself, but only in the panel's own aspect
+    /// ratio and 4:3 — under a 16:9 panel it will hand you 1920×1080 and 1600×1200 and never
+    /// 1920×1200. A 16:10 size has to be declared to exist at all.
+    private static let standardModes: [(width: Int, height: Int)] = [
+        (1920, 1200),
+    ]
+
+    /// Multiple panels are ordinary here — configs is a list and every autoCreate entry is
+    /// created on launch — so identical names are a real possibility, and two displays calling
+    /// themselves the same thing are indistinguishable both in the display list and to anything
+    /// that tracks displays by name because IDs are not stable across reconnects.
+    ///
+    /// The serial number is split for the same reason one layer down: name is cosmetic, but
+    /// vendor/product/serial is how macOS decides two panels are the same panel, and sharing
+    /// it would let their wallpapers and arrangement bleed into each other. The first keeps
+    /// serial 1, so nothing already on screen changes identity.
+    private func identity(for config: VirtualDisplayConfig) -> (name: String, serial: UInt32) {
+        let ordinal = (configs.firstIndex { $0.id == config.id } ?? 0) + 1
+        let name = ordinal <= 1 ? Self.baseDisplayName : "\(Self.baseDisplayName) \(ordinal)"
+        return (name, UInt32(ordinal))
+    }
+
     @discardableResult
     func create(config: VirtualDisplayConfig) async -> Bool {
         let w = config.width
         let h = config.height
         let hiDPI = config.hiDPI
+        let id = identity(for: config)
 
         // Step 1-2: Build descriptor + create CGVirtualDisplay ON MAIN ACTOR.
         // CGVirtualDisplay(descriptor:) requires the main thread (returns nil from background).
@@ -90,10 +118,10 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         )
         descriptor.maxPixelsWide = UInt32(w)
         descriptor.maxPixelsHigh = UInt32(h)
-        descriptor.name = "FreeDisplay GridJapan"
+        descriptor.name = id.name
         descriptor.vendorID = 0xEEEE  // non-zero required — 0 causes CGVirtualDisplay(descriptor:) to return nil
         descriptor.productID = 0x0001
-        descriptor.serialNum = 0x0001
+        descriptor.serialNum = id.serial
         // DO NOT set queue or color primaries — they are not needed and may interfere with creation
 
         guard let virtualDisplay = CGVirtualDisplay(descriptor: descriptor) else {
@@ -108,6 +136,13 @@ final class VirtualDisplayService: ObservableObject, @unchecked Sendable {
         let refreshRates: [Double] = [75.0, 60.0, 50.0]
         for rate in refreshRates {
             modes.append(CGVirtualDisplayMode(width: UInt(w), height: UInt(h), refreshRate: rate))
+        }
+        for extra in Self.standardModes where extra.width <= w && extra.height <= h
+                                           && !(extra.width == w && extra.height == h) {
+            for rate in refreshRates {
+                modes.append(CGVirtualDisplayMode(width: UInt(extra.width), height: UInt(extra.height),
+                                                  refreshRate: rate))
+            }
         }
         if hiDPI {
             let hw = w / 2, hh = h / 2
