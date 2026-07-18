@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreeDisplay — 给 macOS 加一块不存在的显示器。</title>
+<meta name="description" content="一款免费的 macOS 菜单栏 app，无需物理显示器即可创建 HiDPI 虚拟显示器。完整支持 gjPiPWindow。GridJapan fork 在官方版基础上修复了 bug 并加入新功能。">
+<meta property="og:title" content="FreeDisplay — 给 macOS 加一块不存在的显示器。">
+<meta property="og:description" content="一款免费的 macOS 菜单栏 app，无需物理显示器即可创建 HiDPI 虚拟显示器。完整支持 gjPiPWindow。GridJapan fork 在官方版基础上修复了 bug 并加入新功能。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gridjapan.github.io/FreeDisplay/zh/">
+<meta property="og:image" content="https://gridjapan.github.io/FreeDisplay/assets/settings_arrange.png">
+<link rel="alternate" hreflang="en" href="https://gridjapan.github.io/FreeDisplay/en/">
+<link rel="alternate" hreflang="ja" href="https://gridjapan.github.io/FreeDisplay/jp/">
+<link rel="alternate" hreflang="zh-Hans" href="https://gridjapan.github.io/FreeDisplay/zh/">
+<link rel="alternate" hreflang="ko" href="https://gridjapan.github.io/FreeDisplay/ko/">
+<link rel="alternate" hreflang="km" href="https://gridjapan.github.io/FreeDisplay/km/">
+<link rel="alternate" hreflang="x-default" href="https://gridjapan.github.io/FreeDisplay/jp/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23F8F1D6'/%3E%3Ccircle cx='16' cy='14' r='8' fill='%23C2342B' stroke='%230E1430' stroke-width='3'/%3E%3Cline x1='16' y1='22' x2='16' y2='30' stroke='%230E1430' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Sans+Khmer:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F8F1D6; --ink:#0E1430; --a1:#D8702A; --a2:#C2342B; --surf:#EFE56A;
+  --line:#0E143022; --dim:#0E1430b8; --faint:#0E143066;
+  --hf:"Noto Sans JP","Noto Sans SC","Noto Sans KR","Noto Sans Khmer",sans-serif;
+  --cf:"Caveat","Noto Sans JP","Noto Sans SC","Noto Sans KR","Noto Sans Khmer",cursive;
+  --mf:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;overflow-x:clip}
+body{background:var(--bg);color:var(--ink);font-family:var(--hf);line-height:1.75;
+  font-feature-settings:"palt" 1;overflow-x:hidden;
+  background-image:radial-gradient(#0E14300a 1px,transparent 1px);
+  background-size:22px 22px}
+::selection{background:var(--a1);color:#fff}
+nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:22px;
+  padding:13px 28px;background:#F8F1D6f2;backdrop-filter:blur(8px);
+  border-bottom:2px solid var(--ink)}
+nav .logo{display:flex;align-items:center;gap:9px;font-weight:900;font-size:19px;
+  color:var(--ink);text-decoration:none}
+nav .logo .pin{position:static;width:13px;height:13px;background:var(--a2);border:3px solid var(--ink);
+  border-radius:50%;box-shadow:none;flex:none}
+nav a.lk{color:var(--dim);text-decoration:none;font-size:14px}
+nav a.lk:hover{color:var(--a2)}
+nav .gh{font-size:13.5px;font-weight:700;color:#fff;background:var(--ink);
+  padding:7px 16px;border-radius:8px;text-decoration:none;box-shadow:3px 3px 0 #0E143055}
+nav .gh:hover{background:var(--a2)}
+.tape{position:absolute;width:150px;height:30px;background:#D8702Ae0;
+  border-left:2px dashed #0E143088;border-right:2px dashed #0E143088;
+  pointer-events:none;z-index:2}
+.pin{position:absolute;width:26px;height:26px;background:var(--a2);
+  border:4px solid var(--ink);border-radius:50%;box-shadow:5px 5px 0 #0E143033;
+  pointer-events:none;z-index:2}
+.hero{position:relative;max-width:1180px;margin:0 auto;padding:78px 28px 56px;
+  display:grid;grid-template-columns:1.05fr 1fr;gap:52px;align-items:center}
+.hero .k{font-family:var(--cf);font-size:24px;color:var(--a2);letter-spacing:.06em}
+.hero h1{font-weight:900;font-size:clamp(32px,4.4vw,52px);line-height:1.32;margin:10px 0 0}
+.hero h1 em{font-style:normal;color:var(--a1)}
+.hero .sub{margin-top:18px;font-size:17px;color:var(--dim);max-width:560px}
+.btns{display:flex;gap:14px;margin-top:28px;flex-wrap:wrap}
+.btn{font-weight:900;font-size:16px;text-decoration:none;padding:13px 26px;border-radius:10px;
+  border:3px solid var(--ink)}
+.btn.p{background:var(--a1);color:#fff;box-shadow:6px 6px 0 var(--ink)}
+.btn.p:hover{transform:translate(2px,2px);box-shadow:4px 4px 0 var(--ink)}
+.btn.s{background:#fff;color:var(--ink);box-shadow:6px 6px 0 #0E143044}
+.btn.s:hover{transform:translate(2px,2px);box-shadow:4px 4px 0 #0E143044}
+.chips{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+.chip{font-family:var(--mf);font-size:12.5px;color:var(--dim);
+  border:1.5px solid var(--ink)44;background:#fff8;border-radius:999px;padding:5px 14px}
+.pol{position:relative;background:#fff;border:4px solid var(--ink);
+  box-shadow:9px 9px 0 var(--ink);padding:12px 12px 10px;transform:rotate(1.6deg)}
+.pol.l{transform:rotate(-1.8deg)}
+.pol img{width:100%;display:block}
+.pol .cap{font-family:var(--cf);font-size:21px;color:var(--ink);text-align:center;
+  padding-top:8px;line-height:1.2}
+.pol .tape{top:-16px;left:50%;transform:translateX(-50%) rotate(-4deg)}
+.band{max-width:1180px;margin:8px auto 0;padding:0 28px}
+.band-in{position:relative;background:var(--surf);border:3px solid var(--ink);
+  border-radius:4px;padding:26px 32px;transform:rotate(-.6deg);
+  box-shadow:8px 8px 0 #0E143033}
+.band-in .tape{top:-17px;left:44px;transform:rotate(-5deg)}
+.band-in h2{font-weight:900;font-size:clamp(24px,3.3vw,33px);line-height:1.35}
+.band-in h2 em{font-style:normal;color:var(--a2)}
+.band-in p{margin-top:10px;font-size:15.5px;color:var(--dim);max-width:900px}
+section{position:relative;max-width:1180px;margin:0 auto;padding:70px 28px 8px}
+.sh{display:flex;align-items:baseline;gap:16px;border-bottom:3px solid var(--a1);
+  padding-bottom:12px;margin-bottom:8px}
+.sh .no{font-family:var(--cf);font-size:26px;font-weight:700;color:var(--a1)}
+.sh h2{font-size:clamp(23px,3vw,31px);font-weight:900;line-height:1.3}
+.sh .tl{margin-left:auto;font-family:var(--cf);font-size:20px;color:var(--faint);text-align:right}
+.lede{margin:18px 0 26px;font-size:16.5px;color:var(--dim);max-width:840px}
+.lede b{color:var(--ink)}
+.lede a{color:var(--a2);font-weight:700}
+.shots{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;margin:34px 0 26px;align-items:start}
+.bugs{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:30px}
+.bug{position:relative;background:#fff;border:3px solid var(--ink);border-radius:4px;
+  padding:20px 22px 18px;box-shadow:7px 7px 0 #0E143033}
+.bug:nth-child(odd){transform:rotate(-.7deg)}
+.bug:nth-child(even){transform:rotate(.7deg)}
+.bug .pin{top:-13px;left:50%;transform:translateX(-50%)}
+.bug h3{font-size:17.5px;font-weight:900;padding-right:86px}
+.bug p{margin-top:8px;font-size:14.5px;color:var(--dim)}
+.bug .stamp{position:absolute;top:14px;right:16px;font-family:var(--cf);font-size:26px;
+  font-weight:700;color:var(--a2);border:3px solid var(--a2);border-radius:6px;
+  padding:0 10px;transform:rotate(8deg);background:#fff}
+.bug .stamp.add{color:var(--a1);border-color:var(--a1)}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:10px}
+.card{background:#fff;border:2.5px solid var(--ink);border-radius:4px;padding:16px 18px;
+  box-shadow:5px 5px 0 #0E143026}
+.card h3{font-size:15.5px;font-weight:900;color:var(--a1);margin-bottom:6px}
+.card p{font-size:13.5px;color:var(--dim);line-height:1.65}
+.cross{display:grid;grid-template-columns:1fr 380px;gap:44px;align-items:center;margin-top:8px}
+pre{background:var(--ink);color:#F8F1D6;border-radius:8px;box-shadow:7px 7px 0 #0E143033;
+  padding:18px 20px;overflow-x:auto;font-family:var(--mf);font-size:13.5px;line-height:1.85;margin:14px 0}
+pre .c{color:#F8F1D688}
+.twrap{overflow-x:auto;border:2.5px solid var(--ink);border-radius:6px;margin-top:14px;
+  background:#fff;box-shadow:5px 5px 0 #0E143026}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14.5px}
+th,td{padding:11px 16px;border-bottom:1px solid var(--line);text-align:left}
+thead th{font-size:13.5px;color:var(--a1);background:#0E143008;white-space:nowrap}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
+tbody th{font-weight:700;white-space:nowrap}
+td{color:var(--dim)}
+.note{font-size:14px;color:var(--dim);margin-top:10px}
+footer{margin-top:88px;border-top:3px solid var(--ink);padding:32px 28px 44px;
+  text-align:center;font-size:13.5px;color:var(--faint)}
+footer a{color:var(--a2);text-decoration:none;font-weight:700}
+
+/* ===== language switcher ===== */
+.langsw{display:flex;gap:2px;align-items:center;font-family:var(--mf);font-size:12.5px;flex-wrap:wrap}
+.langsw a{color:var(--dim);text-decoration:none;padding:3px 8px;border-radius:6px;line-height:1.4}
+.langsw a:hover{color:var(--a2)}
+.langsw a.on{color:var(--bg);background:var(--a2);font-weight:700}
+@media (max-width:560px){.langsw{font-size:11.5px;gap:0}.langsw a{padding:3px 5px}}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;padding-top:52px}
+  .shots{grid-template-columns:1fr}
+  .bugs{grid-template-columns:1fr}
+  .cards{grid-template-columns:1fr 1fr}
+  .cross{grid-template-columns:1fr}
+  .sh .tl{display:none}
+}
+@media (max-width:560px){
+  .cards{grid-template-columns:1fr}
+  nav a.lk{display:none}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="./"><span class="pin"></span>FreeDisplay</a>
+  <a class="lk" href="#virtual">虚拟显示器</a>
+  <a class="lk" href="#features">功能</a>
+  <a class="lk" href="#bugs">修复与新增</a>
+  <a class="lk" href="#install">安装</a>
+  <a class="lk" href="https://gridjapan.github.io/gjPiPWindow/">gjPiP</a>
+  <span style="margin-left:auto"></span>
+  <div class="langsw"><a href="../en/" hreflang="en">EN</a><a href="../jp/" hreflang="ja">日本語</a><a class="on" href="./" hreflang="zh-Hans">中文</a><a href="../ko/" hreflang="ko">한국어</a><a href="../km/" hreflang="km">ខ្មែរ</a></div>
+  <a class="gh" href="https://github.com/GridJapan/FreeDisplay">GitHub</a>
+</nav>
+
+<div class="hero">
+  <div style="position:relative;z-index:1">
+    <div class="k">GridJapan fork ／ macOS 菜单栏 app</div>
+    <h1>给 macOS 加一块<br><em>不存在</em>的显示器。</h1>
+    <p class="sub">一款免费的 macOS 菜单栏 app，无需物理显示器即可创建 HiDPI 虚拟显示器。也可以通过 DDC 控制真实显示器的亮度和对比度。</p>
+    <div class="btns">
+      <a class="btn p" href="https://github.com/GridJapan/FreeDisplay">在 GitHub 查看源码</a>
+      <a class="btn s" href="#install">安装指南</a>
+    </div>
+    <div class="chips">
+      <span class="chip">macOS 14+</span>
+      <span class="chip">Swift 6 ・ SwiftUI</span>
+      <span class="chip">免费、源码公开</span>
+    </div>
+  </div>
+  <div class="pol">
+    <span class="tape"></span>
+    <img src="../assets/settings_arrange.png" alt="3 块物理显示器＋3 块虚拟显示器。macOS 全都当作真实显示器">
+    <div class="cap">3 块物理显示器＋3 块虚拟显示器。macOS 全都当作真实显示器</div>
+  </div>
+</div>
+
+<div class="band">
+  <div class="band-in">
+    <span class="tape"></span>
+    <h2>完整支持 <em>gjPiPWindow</em>。</h2>
+    <p>FreeDisplay（GridJapan fork）完整支持 <a href="https://gridjapan.github.io/gjPiPWindow/" style="color:var(--a2);font-weight:700">gjPiPWindow</a>。为了长期同时使用 3 块虚拟显示器，我们修复了官方版的 4 个 bug，并加入 4 类功能：记住解像度、预设、单独识别每块显示器、单独关闭每块显示器。</p>
+  </div>
+</div>
+
+<section id="virtual">
+  <div class="sh">
+    <span class="no">01</span>
+    <h2>虚拟显示器会出现在系统设置里</h2>
+    <span class="tl">real to macOS</span>
+  </div>
+  <p class="lede">FreeDisplay 创建的虚拟显示器，在 macOS 看来就是<b>真实显示器</b>。它们会和物理显示器一起出现在系统设置中，也可以选择解像度和刷新率（75Hz）。</p>
+  <div class="shots">
+    <div class="pol l">
+      <span class="tape"></span>
+      <img src="../assets/settings_arrange.png" alt="“排列显示器”中显示 6 块" loading="lazy">
+      <div class="cap">“排列显示器”中显示 6 块</div>
+    </div>
+    <div class="pol">
+      <span class="tape"></span>
+      <img src="../assets/settings_fd3.png" alt="解像度和 75Hz 都可选择" loading="lazy">
+      <div class="cap">解像度和 75Hz 都可选择</div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="sh">
+    <span class="no">02</span>
+    <h2>功能</h2>
+  </div>
+  <div class="cards">
+    <div class="card"><h3>HiDPI 虚拟显示器</h3><p>无需物理显示器即可创建显示器，并可同时使用多块。</p></div>
+    <div class="card"><h3>DDC 亮度与对比度</h3><p>通过 IOKit I2C 直接控制外部显示器的硬件设置。</p></div>
+    <div class="card"><h3>亮度键 ＋ HUD</h3><p>让键盘亮度键也能控制外部显示器，并显示 HUD。</p></div>
+    <div class="card"><h3>自动亮度</h3><p>可根据时间自动调节亮度。</p></div>
+    <div class="card"><h3>排列与主显示器</h3><p>内置排列编辑器，也可切换主显示器。</p></div>
+    <div class="card"><h3>色彩配置文件</h3><p>可为每块显示器切换 ICC 配置文件。</p></div>
+    <div class="card"><h3>画质调整</h3><p>可通过软件调整伽马、对比度、色温和反色。</p></div>
+    <div class="card"><h3>预设</h3><p>可保存并恢复显示器配置。</p></div>
+  </div>
+</section>
+
+<section id="bugs">
+  <div class="sh">
+    <span class="no">03</span>
+    <h2>为同时排列 3 块显示器而修复、补齐</h2>
+    <span class="tl">for the gjPiP rig</span>
+  </div>
+  <p class="lede">这个 fork 是为了让 3 块虚拟显示器长期并排运行，并配合 gjPiP 使用而整理的。过程中修复了官方版的 4 个 bug，也补上了 4 个缺失功能。详情见 <a href="https://github.com/GridJapan/FreeDisplay#readme">README</a>。</p>
+  <div class="bugs">
+    <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
+      <h3>通过 DDC 改亮度会立即崩溃</h3><p>@MainActor 闭包在 DDC 队列上执行，触发 Swift 的隔离检查失败。只要按一次亮度键就能复现。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
+      <h3>菜单里只剩“退出”</h3><p>ScrollView 没有理想高度，而窗口型 MenuBarExtra 会按理想高度决定大小，导致菜单内容全部消失。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
+      <h3>把外部显示器设为主显示器后，0.5 秒就会恢复</h3><p>因为这次修改本身触发了自动排列，把显示器从原点拉开了。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp">FIXED</span>
+      <h3>同一解像度的虚拟显示器无法创建第 3 块</h3><p>因为重复检查看的不是 ID，而是宽度和高度。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>记住并保持所选解像度</h3><p>会记住在系统设置中选择的解像度，重启后也能保持。官方版过一段时间可能会自行恢复原状。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>新增解像度预设</h3><p>新增 1920×1200 和 2048×1280，创建时即可选择。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>虚拟显示器单独识别</h3><p>为每块显示器分别设置名称和 serial，让 macOS 能正确记住并恢复 3 块显示器的排列。</p></div>
+    <div class="bug"><span class="pin"></span><span class="stamp add">ADDED</span>
+      <h3>可以逐块关闭</h3><p>过去只能一次性全部关闭。现在可以单独关闭每一块。</p></div>
+  </div>
+</section>
+
+<section id="gjpip">
+  <div class="sh">
+    <span class="no">04</span>
+    <h2>看不见的屏幕，用 gjPiP 来看</h2>
+    <span class="tl">works together</span>
+  </div>
+  <div class="cross">
+    <div>
+      <p class="lede">虚拟显示器没有物理屏幕。查看和操作它，是搭档 app <b>gjPiP</b> 的工作。你可以把任意显示器实时显示为 PiP，并通过 PiP 用鼠标操作。</p>
+      <div class="btns" style="margin-top:6px">
+        <a class="btn p" href="https://gridjapan.github.io/gjPiPWindow/">查看 gjPiP 页面</a>
+      </div>
+    </div>
+    <div class="pol l">
+      <span class="tape"></span>
+      <a href="https://gridjapan.github.io/gjPiPWindow/"><img src="../assets/gjpip_poster.jpg" alt="通过 PiP 操作虚拟显示器" loading="lazy"></a>
+      <div class="cap">通过 PiP 操作虚拟显示器</div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="sh">
+    <span class="no">05</span>
+    <h2>安装</h2>
+  </div>
+  <p class="lede">请从源码构建。仓库内已包含 Xcode 项目，只要安装了 Xcode 就可以直接构建。</p>
+<pre><span class="c"># 克隆并构建（会生成 build/FreeDisplay.dmg）</span>
+git clone https://github.com/GridJapan/FreeDisplay.git
+cd FreeDisplay
+./build.sh
+
+<span class="c"># 打开 DMG，将 FreeDisplay.app 移到 Applications。</span>
+<span class="c"># 由于未签名，首次启动时请右键点击 →“打开”。</span></pre>
+  <div class="twrap">
+  <table>
+    <thead><tr><th>权限</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><th>辅助功能</th><td>使用外部显示器时，用于接管键盘亮度键。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">不会使用网络连接（可选的 GitHub Releases 更新检查除外）。</p>
+</section>
+
+<footer>
+  <p>FreeDisplay ／ <a href="https://github.com/GridJapan/FreeDisplay">GridJapan/FreeDisplay</a> ・
+  fork 来源: <a href="https://github.com/huberdf/FreeDisplay">huberdf/FreeDisplay</a> ・
+  搭档: <a href="https://gridjapan.github.io/gjPiPWindow/">gjPiP</a></p>
+  <p style="margin-top:8px">© 2026 GridJapan株式会社</p>
+</footer>
+
+</body>
+</html>
